@@ -1,0 +1,17 @@
+{
+  "name": "lambda-pdf",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./lib/converter.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bwip-js": "^3.3.0",
+    "gm": "^1.25.0",
+    "pdf-lib": "^1.17.1"
+  }
+}
