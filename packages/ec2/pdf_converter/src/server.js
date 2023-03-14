@@ -12,12 +12,15 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import cors from "cors";
+import { getXBarcodeCoordinate } from "./utils/utils.js";
 
 const barCodeYcoordinateAdjustment = -35;
 const barCodeXcoordinateAdjustment = 5;
 
 const additionalPageHeight = 5;
 const randomNumberMultiplier = 10000000000;
+
+const allowedBarCodePositions = ["LEFT", "RIGHT", "MIDDLE"];
 
 const app = express();
 
@@ -67,7 +70,12 @@ app.post("/barcode", async (req, res) => {
     const body = req?.body;
     const params = body?.params;
 
-    if (!params || !params.barCodeText) {
+    if (
+      !params ||
+      !params.barCodeText ||
+      !params.barcode_position ||
+      !allowedBarCodePositions.includes(params.barcode_position)
+    ) {
       return res.status(400).json({
         statusCode: 400,
         message: "Bad Request",
@@ -111,7 +119,7 @@ app.post("/barcode", async (req, res) => {
     page.setHeight(page.getHeight() + additionalPageHeight);
 
     page.drawImage(barCodePngImage, {
-      x: pngDims.width / 2 + barCodeXcoordinateAdjustment,
+      x: getXBarcodeCoordinate(page.getWidth(), params.barcode_position),
       y: page.getHeight() + pngDims.height / 2 + barCodeYcoordinateAdjustment,
       width: pngDims.width,
       height: pngDims.height,
