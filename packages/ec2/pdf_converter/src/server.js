@@ -15,7 +15,6 @@ import cors from "cors";
 import { getXBarcodeCoordinate } from "./utils/utils.js";
 
 const barCodeYcoordinateAdjustment = -35;
-const barCodeXcoordinateAdjustment = 5;
 
 const additionalPageHeight = 5;
 const randomNumberMultiplier = 10000000000;
@@ -70,12 +69,7 @@ app.post("/barcode", async (req, res) => {
     const body = req?.body;
     const params = body?.params;
 
-    if (
-      !params ||
-      !params.barCodeText ||
-      !params.barcode_position ||
-      !allowedBarCodePositions.includes(params.barcode_position)
-    ) {
+    if (!params || !params.barCodeText) {
       return res.status(400).json({
         statusCode: 400,
         message: "Bad Request",
@@ -119,7 +113,7 @@ app.post("/barcode", async (req, res) => {
     page.setHeight(page.getHeight() + additionalPageHeight);
 
     page.drawImage(barCodePngImage, {
-      x: getXBarcodeCoordinate(page.getWidth(), params.barcode_position),
+      x: getXBarcodeCoordinate(page.getWidth(), params?.barcode_position),
       y: page.getHeight() + pngDims.height / 2 + barCodeYcoordinateAdjustment,
       width: pngDims.width,
       height: pngDims.height,
