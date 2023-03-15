@@ -13,13 +13,11 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import cors from "cors";
 import { getXBarcodeCoordinate } from "./utils/utils.js";
-
-const barCodeYcoordinateAdjustment = -35;
-
-const additionalPageHeight = 5;
-const randomNumberMultiplier = 10000000000;
-
-const allowedBarCodePositions = ["LEFT", "RIGHT", "MIDDLE"];
+import {
+  BARCODEYCOORDINATEADJUSTMENT,
+  ADDITIONALPAGEHEIGHT,
+  RANDOMNUMBERMULTIPLIER,
+} from "./utils/constants.js";
 
 const app = express();
 
@@ -35,7 +33,7 @@ const s3Client = new S3Client({
 });
 
 app.get("/signedURL", async (req, res) => {
-  const barcode = Math.floor(Math.random() * randomNumberMultiplier);
+  const barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
   const objectKey = barcode + ".pdf";
 
   const command = new PutObjectCommand({
@@ -110,11 +108,11 @@ app.post("/barcode", async (req, res) => {
     const pngDims = barCodePngImage.scale(0.25);
 
     const page = pdfDoc.getPage(0);
-    page.setHeight(page.getHeight() + additionalPageHeight);
+    page.setHeight(page.getHeight() + ADDITIONALPAGEHEIGHT);
 
     page.drawImage(barCodePngImage, {
       x: getXBarcodeCoordinate(page.getWidth(), params?.barcode_position),
-      y: page.getHeight() + pngDims.height / 2 + barCodeYcoordinateAdjustment,
+      y: page.getHeight() + pngDims.height / 2 + BARCODEYCOORDINATEADJUSTMENT,
       width: pngDims.width,
       height: pngDims.height,
     });
@@ -126,7 +124,9 @@ app.post("/barcode", async (req, res) => {
       .subClass({ imageMagick: true })(pdfByteBuffer)
       .setFormat("tiff")
       .background("white")
-      .density(100, 100)
+      .density(200, 200)
+      .type("grayscale")
+      .compress("JPEG")
       .toBuffer(async (err, buf) => {
         if (err) {
           console.error("Error getting tiff buffer", err);
