@@ -94,7 +94,9 @@ app.post("/barcode", async (req, res) => {
       height: 5, // Bar height, in millimeters
       includetext: true, // Show human-readable text
       textxalign: "center",
-      textsize: 12,
+      textsize: 13,
+      textcolor: "black",
+      textfont: "sans-serif",
     }).catch((err) => {
       console.error(
         "There was an error generating barcode :: ",
@@ -105,7 +107,7 @@ app.post("/barcode", async (req, res) => {
 
     const barCodePngImage = await pdfDoc.embedPng(barCodeBuffer);
 
-    const pngDims = barCodePngImage.scale(0.25);
+    const pngDims = barCodePngImage.scale(0.35);
 
     const page = pdfDoc.getPage(0);
     page.setHeight(page.getHeight() + ADDITIONALPAGEHEIGHT);
@@ -127,6 +129,7 @@ app.post("/barcode", async (req, res) => {
       .density(200, 200)
       .type("grayscale")
       .compress("JPEG")
+      .flatten()
       .toBuffer(async (err, buf) => {
         if (err) {
           console.error("Error getting tiff buffer", err);
