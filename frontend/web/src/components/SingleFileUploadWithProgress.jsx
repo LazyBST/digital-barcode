@@ -5,12 +5,37 @@ import { Grid, LinearProgress } from "@mui/material";
 import { axiosInstance } from "@/utils";
 import { FileHeader } from "./FileHeader";
 
-export function SingleFileUploadWithProgress({ file, onUpload }) {
+export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition }) {
   const [progress, setProgress] = useState(0);
   const [objectKey, setObjectKey] = useState();
+  const [downloading, setDownloading] = useState(false);
 
-  const onDownload = () => {
+  const onDownload = async () => {
     // Write on download function using objectKey
+    setDownloading(true);
+    const {data} = await axiosInstance.post(
+      "/barcode", 
+      {
+        object_key: String(objectKey),
+        barcode_position: String(barcodePosition)
+      });
+
+      const link = document.createElement('a');
+      link.href = data.tiff_url;
+      link.setAttribute(
+        'download',
+        `${objectKey}.tiff`,
+      );
+  
+      // Append to html link element page
+      document.body.appendChild(link);
+  
+      // Start download
+      link.click();
+  
+      // Clean up and remove the link
+      link.parentNode.removeChild(link);
+      setDownloading(false);
   };
 
   useEffect(() => {
@@ -42,7 +67,7 @@ export function SingleFileUploadWithProgress({ file, onUpload }) {
 
   return (
     <Grid item>
-      <FileHeader file={file} onDownload={onDownload} />
+      <FileHeader file={file} onDownload={onDownload} disableDownload={downloading}/>
       <LinearProgress variant="determinate" value={progress} />
     </Grid>
   );

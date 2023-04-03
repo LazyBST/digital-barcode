@@ -1,4 +1,4 @@
-import { Box, Grid } from "@mui/material";
+import { Box, Grid, Select, MenuItem, InputLabel, FormControl } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 
@@ -58,12 +58,32 @@ export function MultipleFileUploadField() {
     },
   });
 
+  const [barcodePosition, setBarcodePosition] = useState("LEFT");
+
+  const handleBarcodePosition = (event) => {
+    setBarcodePosition(event.target.value);
+  };
+
   return (
     <React.Fragment>
       <Grid item>
+        <FormControl sx={{ m: 1, minWidth: 120 }}>
+        <InputLabel id="demo-controlled-open-select-label">Barcode Position</InputLabel>
+          <Select
+            labelId="demo-controlled-open-select-label"
+            id="demo-controlled-open-select"
+            value={barcodePosition}
+            label="Barcode Position"
+            onChange={handleBarcodePosition}
+            sx={{mb: 2}}
+            >
+            <MenuItem value={"LEFT"}>Left</MenuItem>
+            <MenuItem value={"RIGHT"}>Right</MenuItem>
+            <MenuItem value={"MIDDLE"}>Middle</MenuItem>
+          </Select>
+        </FormControl>
         <Box {...getRootProps()} sx={useStyles}>
           <input {...getInputProps()} />
-
           <p>Drag 'n' drop some files here, or click to select files</p>
         </Box>
       </Grid>
@@ -80,6 +100,7 @@ export function MultipleFileUploadField() {
               />
             ) : (
               <SingleFileUploadWithProgress
+                barcodePosition={barcodePosition}
                 onUpload={onUpload}
                 file={fileWrapper.file}
               />

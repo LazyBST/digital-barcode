@@ -13,11 +13,12 @@ import (
 )
 
 // GeneratePresignedURL generates a presigned URL for uploading a PDF file to S3
-func GeneratePresignedURL(bucketName, objectKey string, expires time.Duration) (string, error) {
+func GeneratePresignedURL(bucketName, objectKey string, expiration time.Duration) (string, error) {
 	// create AWS session
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-west-2"), // replace with your desired region
+		Region: aws.String("us-west-2"),
 	})
+
 	if err != nil {
 		return "", err
 	}
@@ -30,14 +31,14 @@ func GeneratePresignedURL(bucketName, objectKey string, expires time.Duration) (
 		Bucket:      aws.String(bucketName),
 		Key:         aws.String(objectKey),
 		ContentType: aws.String("application/pdf"),
-		ACL:         aws.String("public-read"), // replace with your desired ACL
+		ACL:         aws.String("public-read"),
 	})
 	if err != nil {
 		return "", err
 	}
 
 	// generate presigned URL with expiration time
-	url, err := req.Presign(expires)
+	url, err := req.Presign(expiration)
 	if err != nil {
 		return "", err
 	}
