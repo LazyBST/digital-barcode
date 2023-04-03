@@ -19,6 +19,14 @@ import {
   RANDOMNUMBERMULTIPLIER,
 } from "./utils/constants.js";
 
+import {
+  splitPdfAndConvertToTiff,
+  multipageMerge,
+  cleanUp,
+  readFile,
+  cleanUpAllTiff,
+} from "./utils/utils.js";
+
 const app = express();
 
 app.use(express.json({ limit: "900mb" }));
@@ -85,70 +93,35 @@ app.post("/barcode", async (req, res) => {
     const inputPdfBytes = Buffer.from(pdfBytes);
     const barCodeText = params.barCodeText;
 
+    cleanUpAllTiff();
+
     const pdfDoc = await PDFDocument.load(inputPdfBytes);
 
-    const barCodeBuffer = await BwipJs.toBuffer({
-      bcid: "interleaved2of5", // Barcode type
-      text: barCodeText, // Text to encode
-      scale: 3, // 3x scaling factor
-      height: 5, // Bar height, in millimeters
-      includetext: true, // Show human-readable text
-      textxalign: "center",
-      textsize: 13,
-      textcolor: "black",
-      textfont: "sans-serif",
-    }).catch((err) => {
-      console.error(
-        "There was an error generating barcode :: ",
-        JSON.stringify(err)
-      );
-      throw err;
-    });
+    const numberOfPages = pdfDoc.getPages().length;
 
-    const barCodePngImage = await pdfDoc.embedPng(barCodeBuffer);
-
-    const pngDims = barCodePngImage.scale(0.35);
-
-    const page = pdfDoc.getPage(0);
-    page.setHeight(page.getHeight() + ADDITIONALPAGEHEIGHT);
-
-    page.drawImage(barCodePngImage, {
-      x: getXBarcodeCoordinate(page.getWidth(), params?.barcode_position),
-      y: page.getHeight() + pngDims.height / 2 + BARCODEYCOORDINATEADJUSTMENT,
-      width: pngDims.width,
-      height: pngDims.height,
-    });
-
-    const updatedpdfBytes = await pdfDoc.save();
-    const pdfByteBuffer = Buffer.from(updatedpdfBytes);
-
-    return gm
-      .subClass({ imageMagick: true })(pdfByteBuffer)
-      .setFormat("tiff")
-      .background("white")
-      .density(200, 200)
-      .type("grayscale")
-      .compress("JPEG")
-      .flatten()
-      .toBuffer(async (err, buf) => {
-        if (err) {
-          console.error("Error getting tiff buffer", err);
-          throw err;
-        }
+    await splitPdfAndConvertToTiff(
+      pdfDoc,
+      numberOfPages,
+      barCodeText,
+      params?.barcode_position
+    ).then(async () => {
+      await multipageMerge(numberOfPages);
+      setTimeout(async () => {
+        let outputMultiPageTiff = readFile("./multipage.tiff");
 
         const putCommand = new PutObjectCommand({
           Bucket: process.env.S3_BUCKET,
           Key: params.barCodeText + ".tiff",
-          Body: buf,
+          Body: outputMultiPageTiff,
           ACL: "public-read",
         });
 
-        const response = await s3Client.send(putCommand).catch((err) => {
+        const resp = await s3Client.send(putCommand).catch((err) => {
           console.error("Error uploading to S3: ", err);
           return "err";
         });
 
-        if (response === "err") {
+        if (resp === "err") {
           throw new Error("Error uploading to S3");
         }
 
@@ -170,7 +143,8 @@ app.post("/barcode", async (req, res) => {
         return res.json({
           tiff_url: tiffUrl,
         });
-      });
+      }, 100);
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({
