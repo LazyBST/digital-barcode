@@ -19,6 +19,14 @@ import {
   RANDOMNUMBERMULTIPLIER,
 } from "./utils/constants.js";
 
+import {
+  splitPdfAndConvertToTiff,
+  multipageMerge,
+  compressTiff,
+  readFile,
+  cleanUpAllTiff,
+} from "./utils/utils.js";
+
 const app = express();
 
 app.use(express.json({ limit: "900mb" }));
@@ -85,92 +93,58 @@ app.post("/barcode", async (req, res) => {
     const inputPdfBytes = Buffer.from(pdfBytes);
     const barCodeText = params.barCodeText;
 
+    cleanUpAllTiff();
+
     const pdfDoc = await PDFDocument.load(inputPdfBytes);
 
-    const barCodeBuffer = await BwipJs.toBuffer({
-      bcid: "interleaved2of5", // Barcode type
-      text: barCodeText, // Text to encode
-      scale: 3, // 3x scaling factor
-      height: 5, // Bar height, in millimeters
-      includetext: true, // Show human-readable text
-      textxalign: "center",
-      textsize: 13,
-      textcolor: "black",
-      textfont: "sans-serif",
+    const numberOfPages = pdfDoc.getPages().length;
+
+    await splitPdfAndConvertToTiff(
+      pdfDoc,
+      numberOfPages,
+      barCodeText,
+      params?.barcode_position
+    );
+
+    const outputPath = multipageMerge(numberOfPages);
+    let outputMultiPageTiff = readFile(outputPath);
+
+    // const compressedTiff = await compressTiff(outputMultiPageTiff);
+
+    const putCommand = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: params.barCodeText + ".tiff",
+      Body: outputMultiPageTiff,
+      ACL: "public-read",
+    });
+
+    const resp = await s3Client.send(putCommand).catch((err) => {
+      console.error("Error uploading to S3: ", err);
+      return "err";
+    });
+
+    if (resp === "err") {
+      throw new Error("Error uploading to S3");
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: params.barCodeText + ".tiff",
+    });
+
+    const tiffUrl = await getSignedUrl(s3Client, command, {
+      expiresIn: 3600,
     }).catch((err) => {
       console.error(
-        "There was an error generating barcode :: ",
-        JSON.stringify(err)
+        `Error generating s3 presigned url for file :: ${
+          params.barCodeText + ".tiff"
+        } :: ${err}`
       );
-      throw err;
     });
 
-    const barCodePngImage = await pdfDoc.embedPng(barCodeBuffer);
-
-    const pngDims = barCodePngImage.scale(0.35);
-
-    const page = pdfDoc.getPage(0);
-    page.setHeight(page.getHeight() + ADDITIONALPAGEHEIGHT);
-
-    page.drawImage(barCodePngImage, {
-      x: getXBarcodeCoordinate(page.getWidth(), params?.barcode_position),
-      y: page.getHeight() + pngDims.height / 2 + BARCODEYCOORDINATEADJUSTMENT,
-      width: pngDims.width,
-      height: pngDims.height,
+    return res.json({
+      tiff_url: tiffUrl,
     });
-
-    const updatedpdfBytes = await pdfDoc.save();
-    const pdfByteBuffer = Buffer.from(updatedpdfBytes);
-
-    return gm
-      .subClass({ imageMagick: true })(pdfByteBuffer)
-      .setFormat("tiff")
-      .background("white")
-      .density(200, 200)
-      .type("grayscale")
-      .compress("JPEG")
-      .flatten()
-      .toBuffer(async (err, buf) => {
-        if (err) {
-          console.error("Error getting tiff buffer", err);
-          throw err;
-        }
-
-        const putCommand = new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET,
-          Key: params.barCodeText + ".tiff",
-          Body: buf,
-          ACL: "public-read",
-        });
-
-        const response = await s3Client.send(putCommand).catch((err) => {
-          console.error("Error uploading to S3: ", err);
-          return "err";
-        });
-
-        if (response === "err") {
-          throw new Error("Error uploading to S3");
-        }
-
-        const command = new GetObjectCommand({
-          Bucket: process.env.S3_BUCKET,
-          Key: params.barCodeText + ".tiff",
-        });
-
-        const tiffUrl = await getSignedUrl(s3Client, command, {
-          expiresIn: 3600,
-        }).catch((err) => {
-          console.error(
-            `Error generating s3 presigned url for file :: ${
-              params.barCodeText + ".tiff"
-            } :: ${err}`
-          );
-        });
-
-        return res.json({
-          tiff_url: tiffUrl,
-        });
-      });
   } catch (err) {
     console.error(err);
     res.status(500).json({
