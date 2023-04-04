@@ -116,7 +116,7 @@ export const convertToTiff = (pdfBuffer, filename) => {
   });
 };
 
-export const multipageMerge = async (numberOfPages) => {
+export const multipageMerge = (numberOfPages) => {
   let output_path = "./multipage.tiff";
 
   let input_paths = [];
@@ -130,9 +130,9 @@ export const multipageMerge = async (numberOfPages) => {
   }
 
   // Async version
-  await mp.JoinAsync(output_path, input_paths, function (err) {
-    if (err) console.error("error combining tiffs", err);
-  });
+  mp.JoinSync(output_path, input_paths);
+
+  return output_path;
 };
 
 export const readFile = (path) => {
@@ -169,4 +169,18 @@ export const cleanUpAllTiff = () => {
   fs.readdirSync(path)
     .filter((f) => regex.test(f))
     .map((f) => fs.unlinkSync(path + f));
+};
+
+export const compressTiff = (tiffBytes) => {
+  return new Promise((resolve, reject) => {
+    gm.subClass({ imageMagick: true })(tiffBytes)
+      .compress("JPEG")
+      .toBuffer((err, buffer) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(buffer);
+        }
+      });
+  });
 };

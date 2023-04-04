@@ -22,7 +22,7 @@ import {
 import {
   splitPdfAndConvertToTiff,
   multipageMerge,
-  cleanUp,
+  compressTiff,
   readFile,
   cleanUpAllTiff,
 } from "./utils/utils.js";
@@ -104,46 +104,46 @@ app.post("/barcode", async (req, res) => {
       numberOfPages,
       barCodeText,
       params?.barcode_position
-    ).then(async () => {
-      await multipageMerge(numberOfPages);
-      setTimeout(async () => {
-        let outputMultiPageTiff = readFile("./multipage.tiff");
+    );
 
-        const putCommand = new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET,
-          Key: params.barCodeText + ".tiff",
-          Body: outputMultiPageTiff,
-          ACL: "public-read",
-        });
+    const outputPath = multipageMerge(numberOfPages);
+    let outputMultiPageTiff = readFile(outputPath);
 
-        const resp = await s3Client.send(putCommand).catch((err) => {
-          console.error("Error uploading to S3: ", err);
-          return "err";
-        });
+    // const compressedTiff = await compressTiff(outputMultiPageTiff);
 
-        if (resp === "err") {
-          throw new Error("Error uploading to S3");
-        }
+    const putCommand = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: params.barCodeText + ".tiff",
+      Body: outputMultiPageTiff,
+      ACL: "public-read",
+    });
 
-        const command = new GetObjectCommand({
-          Bucket: process.env.S3_BUCKET,
-          Key: params.barCodeText + ".tiff",
-        });
+    const resp = await s3Client.send(putCommand).catch((err) => {
+      console.error("Error uploading to S3: ", err);
+      return "err";
+    });
 
-        const tiffUrl = await getSignedUrl(s3Client, command, {
-          expiresIn: 3600,
-        }).catch((err) => {
-          console.error(
-            `Error generating s3 presigned url for file :: ${
-              params.barCodeText + ".tiff"
-            } :: ${err}`
-          );
-        });
+    if (resp === "err") {
+      throw new Error("Error uploading to S3");
+    }
 
-        return res.json({
-          tiff_url: tiffUrl,
-        });
-      }, 100);
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: params.barCodeText + ".tiff",
+    });
+
+    const tiffUrl = await getSignedUrl(s3Client, command, {
+      expiresIn: 3600,
+    }).catch((err) => {
+      console.error(
+        `Error generating s3 presigned url for file :: ${
+          params.barCodeText + ".tiff"
+        } :: ${err}`
+      );
+    });
+
+    return res.json({
+      tiff_url: tiffUrl,
     });
   } catch (err) {
     console.error(err);
