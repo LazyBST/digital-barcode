@@ -31,7 +31,9 @@ export class APIStack extends Stack {
     const authorizerName = `${STAGE}-digital-barcode-authorizer`;
     const userPoolId = Fn.importValue(`${STAGE}-digital-barcode-user-pool-id`);
     const s3BucketName = Fn.importValue(`${STAGE}-digital-barcode-bucket-name`);
+    console.log(s3BucketName);
     const s3BucketArn = Fn.importValue(`${STAGE}-digital-barcode-bucket-arn`);
+    console.log(s3BucketArn);
     const userPool = UserPool.fromUserPoolId(
       this,
       `${STAGE}-digital-barcode-user-pool`,

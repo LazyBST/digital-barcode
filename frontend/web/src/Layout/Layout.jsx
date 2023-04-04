@@ -65,8 +65,7 @@ export function Layout({ children }) {
         onMouseLeave={handleDrawerClose}
       >
         <SidebarHeader>
-          {/* <img src={appLogo} alt="Logo" /> */}
-          CODE
+          <img src="https://ennovatech.com/assets/images/company-logo/hotlync.svg" alt="Hotlync" width="100%"/>
         </SidebarHeader>
         <Divider />
         <List>
@@ -96,7 +95,7 @@ export function Layout({ children }) {
             </ListItem>
           </Link>
 
-          <Link href="/history" style={{ all: "unset" }}>
+          {/*<Link href="/history" style={{ all: "unset" }}>
             <ListItem disablePadding sx={{ display: "block" }}>
               <ListItemButton
                 sx={{
@@ -120,7 +119,7 @@ export function Layout({ children }) {
                 />
               </ListItemButton>
             </ListItem>
-          </Link>
+                </Link>*/}
         </List>
       </SideBar>
       <Box component="main" sx={{ flexGrow: 1, p: 1 }}>
