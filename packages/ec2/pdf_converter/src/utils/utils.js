@@ -8,6 +8,8 @@ import {
   BARCODEYCOORDINATEADJUSTMENT,
   ADDITIONALPAGEHEIGHT,
 } from "./constants.js";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const getXBarcodeCoordinate = (pageWidth, position) => {
   let xCoordinate;
@@ -57,7 +59,7 @@ export const addBarCodeToPdf = async (pdfByteStream, barCodeText, position) => {
   const pdfDoc = await PDFDocument.load(pdfByteStream);
 
   const barCodeBuffer = await BwipJs.toBuffer({
-    bcid: "interleaved2of5",
+    bcid: "code2of5",
     text: barCodeText,
     scale: 3,
     height: 5,
@@ -183,4 +185,39 @@ export const compressTiff = (tiffBytes) => {
         }
       });
   });
+};
+
+export const uploadToS3 = async (s3Client, body, key) => {
+  const putCommand = new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+    Body: body,
+    ACL: "public-read",
+  });
+
+  const resp = await s3Client.send(putCommand).catch((err) => {
+    console.error("Error uploading to S3: ", err);
+    return "err";
+  });
+
+  if (resp === "err") {
+    throw new Error("Error uploading to S3");
+  }
+};
+
+export const getPresignedUrl = async (s3Client, key) => {
+  const command = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+  });
+
+  const tiffUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: 3600,
+  }).catch((err) => {
+    console.error(
+      `Error generating s3 presigned url for file :: ${key} :: ${err}`
+    );
+  });
+
+  return tiffUrl;
 };
