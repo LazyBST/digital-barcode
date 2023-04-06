@@ -19,14 +19,14 @@ import {
 } from "./utils/constants.js";
 
 import {
-  splitPdfAndConvertToTiff,
+  splitPdfAndAddBarCode,
   multipageMerge,
   addBarCodeToPdf,
   readFile,
   uploadToS3,
-  cleanUpAllTiff,
+  cleanUpAllFiles,
   getPresignedUrl,
-  grayscaleAndCompressPdf,
+  mergePdfs,
 } from "./utils/utils.js";
 
 const app = express();
@@ -105,22 +105,25 @@ app.post("/barcode", async (req, res) => {
     const barCodeText = params.barCodeText;
     const position = params?.barcode_position;
 
-    cleanUpAllTiff();
+    cleanUpAllFiles();
 
     const pdfDoc = await PDFDocument.load(inputPdfBytes);
 
     const numberOfPages = pdfDoc.getPages().length;
     if (exportType === "PDF") {
-      const compressedPdf = await grayscaleAndCompressPdf(inputPdfBytes, "pdf");
-      const updatedPdf = await addBarCodeToPdf(
-        compressedPdf.buffer,
+      await splitPdfAndAddBarCode(
+        pdfDoc,
+        numberOfPages,
         barCodeText,
-        position
+        position,
+        "pdf"
       );
+      const outputPath = await mergePdfs(numberOfPages);
+      const outputMultiPagePdf = readFile(outputPath);
 
       const fileKey = params.barCodeText + "-modified.pdf";
 
-      await uploadToS3(s3Client, updatedPdf, fileKey);
+      await uploadToS3(s3Client, outputMultiPagePdf, fileKey);
 
       const url = await getPresignedUrl(s3Client, fileKey);
 
@@ -129,11 +132,12 @@ app.post("/barcode", async (req, res) => {
         tiff_url: url,
       });
     } else {
-      await splitPdfAndConvertToTiff(
+      await splitPdfAndAddBarCode(
         pdfDoc,
         numberOfPages,
         barCodeText,
-        position
+        position,
+        "tiff"
       );
 
       const outputPath = multipageMerge(numberOfPages);
