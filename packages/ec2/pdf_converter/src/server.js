@@ -26,6 +26,7 @@ import {
   uploadToS3,
   cleanUpAllTiff,
   getPresignedUrl,
+  grayscaleAndCompressPdf,
 } from "./utils/utils.js";
 
 const app = express();
@@ -110,8 +111,9 @@ app.post("/barcode", async (req, res) => {
 
     const numberOfPages = pdfDoc.getPages().length;
     if (exportType === "PDF") {
+      const compressedPdf = await grayscaleAndCompressPdf(inputPdfBytes, "pdf");
       const updatedPdf = await addBarCodeToPdf(
-        inputPdfBytes,
+        compressedPdf.buffer,
         barCodeText,
         position
       );
@@ -124,6 +126,7 @@ app.post("/barcode", async (req, res) => {
 
       return res.json({
         url,
+        tiff_url: url,
       });
     } else {
       await splitPdfAndConvertToTiff(
@@ -146,6 +149,7 @@ app.post("/barcode", async (req, res) => {
 
       return res.json({
         url,
+        tiff_url: url,
       });
     }
   } catch (err) {

@@ -221,3 +221,22 @@ export const getPresignedUrl = async (s3Client, key) => {
 
   return tiffUrl;
 };
+
+export const grayscaleAndCompressPdf = async (pdfBuffer, outputFormat) => {
+  return new Promise((resolve, reject) => {
+    gm.subClass({ imageMagick: true })(pdfBuffer)
+      .setFormat(outputFormat)
+      .background("white")
+      .density(200, 200)
+      .type("grayscale")
+      .compress("JPEG")
+      .toBuffer(function (error, buffer) {
+        if (error) {
+          console.error("Error saving file", error);
+          reject(error);
+        } else {
+          resolve({ buffer });
+        }
+      });
+  });
+};
