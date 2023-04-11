@@ -1,5 +1,4 @@
 import * as fs from "fs";
-import * as util from "util";
 import { PDFDocument } from "pdf-lib";
 import BwipJs from "bwip-js";
 import gm from "gm";
@@ -70,10 +69,11 @@ export const addBarCodeToPdf = async (pdfByteStream, barCodeText, position) => {
   const pdfDoc = await PDFDocument.load(pdfByteStream);
 
   const barCodeBuffer = await BwipJs.toBuffer({
-    bcid: "code2of5",
+    bcid: "interleaved2of5",
     text: barCodeText,
     scale: 3,
-    height: 5,
+    height: 6,
+    backgroundcolor: "ffffff",
     includetext: true,
     textxalign: "center",
     textsize: 13,
