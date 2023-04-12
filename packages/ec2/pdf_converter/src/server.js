@@ -3,8 +3,6 @@ dotenv.config();
 
 import express from "express";
 import { PDFDocument } from "pdf-lib";
-import BwipJs from "bwip-js";
-import gm from "gm";
 import {
   S3Client,
   GetObjectCommand,
@@ -17,14 +15,18 @@ import {
   BARCODEYCOORDINATEADJUSTMENT,
   ADDITIONALPAGEHEIGHT,
   RANDOMNUMBERMULTIPLIER,
+  EXPORT_TYPES,
 } from "./utils/constants.js";
 
 import {
-  splitPdfAndConvertToTiff,
+  splitPdfAndAddBarCode,
   multipageMerge,
-  compressTiff,
+  addBarCodeToPdf,
   readFile,
-  cleanUpAllTiff,
+  uploadToS3,
+  cleanUpAllFiles,
+  getPresignedUrl,
+  mergePdfs,
 } from "./utils/utils.js";
 
 const app = express();
@@ -82,6 +84,15 @@ app.post("/barcode", async (req, res) => {
       });
     }
 
+    const exportType = params?.export_type || "TIFF";
+
+    if (!EXPORT_TYPES.includes(exportType)) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Bad Request",
+      });
+    }
+
     const getCommand = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
       Key: params.barCodeText + ".pdf",
@@ -92,59 +103,59 @@ app.post("/barcode", async (req, res) => {
 
     const inputPdfBytes = Buffer.from(pdfBytes);
     const barCodeText = params.barCodeText;
+    const position = params?.barcode_position;
 
-    cleanUpAllTiff();
+    cleanUpAllFiles();
 
     const pdfDoc = await PDFDocument.load(inputPdfBytes);
 
     const numberOfPages = pdfDoc.getPages().length;
-
-    await splitPdfAndConvertToTiff(
-      pdfDoc,
-      numberOfPages,
-      barCodeText,
-      params?.barcode_position
-    );
-
-    const outputPath = multipageMerge(numberOfPages);
-    let outputMultiPageTiff = readFile(outputPath);
-
-    // const compressedTiff = await compressTiff(outputMultiPageTiff);
-
-    const putCommand = new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET,
-      Key: params.barCodeText + ".tiff",
-      Body: outputMultiPageTiff,
-      ACL: "public-read",
-    });
-
-    const resp = await s3Client.send(putCommand).catch((err) => {
-      console.error("Error uploading to S3: ", err);
-      return "err";
-    });
-
-    if (resp === "err") {
-      throw new Error("Error uploading to S3");
-    }
-
-    const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET,
-      Key: params.barCodeText + ".tiff",
-    });
-
-    const tiffUrl = await getSignedUrl(s3Client, command, {
-      expiresIn: 3600,
-    }).catch((err) => {
-      console.error(
-        `Error generating s3 presigned url for file :: ${
-          params.barCodeText + ".tiff"
-        } :: ${err}`
+    if (exportType === "PDF") {
+      await splitPdfAndAddBarCode(
+        pdfDoc,
+        numberOfPages,
+        barCodeText,
+        position,
+        "pdf"
       );
-    });
+      const outputPath = await mergePdfs(numberOfPages);
+      const outputMultiPagePdf = readFile(outputPath);
 
-    return res.json({
-      tiff_url: tiffUrl,
-    });
+      const fileKey = params.barCodeText + "-modified.pdf";
+
+      await uploadToS3(s3Client, outputMultiPagePdf, fileKey);
+
+      const url = await getPresignedUrl(s3Client, fileKey);
+
+      return res.json({
+        url,
+        tiff_url: url,
+      });
+    } else {
+      await splitPdfAndAddBarCode(
+        pdfDoc,
+        numberOfPages,
+        barCodeText,
+        position,
+        "tiff"
+      );
+
+      const outputPath = multipageMerge(numberOfPages);
+      let outputMultiPageTiff = readFile(outputPath);
+
+      // const compressedTiff = await compressTiff(outputMultiPageTiff);
+
+      const fileKey = params.barCodeText + ".tiff";
+
+      await uploadToS3(s3Client, outputMultiPageTiff, fileKey);
+
+      const url = await getPresignedUrl(s3Client, fileKey);
+
+      return res.json({
+        url,
+        tiff_url: url,
+      });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({

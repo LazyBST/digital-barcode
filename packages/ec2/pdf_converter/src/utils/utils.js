@@ -1,5 +1,4 @@
 import * as fs from "fs";
-import * as util from "util";
 import { PDFDocument } from "pdf-lib";
 import BwipJs from "bwip-js";
 import gm from "gm";
@@ -8,6 +7,9 @@ import {
   BARCODEYCOORDINATEADJUSTMENT,
   ADDITIONALPAGEHEIGHT,
 } from "./constants.js";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import PDFMerger from "pdf-merger-js";
 
 export const getXBarcodeCoordinate = (pageWidth, position) => {
   let xCoordinate;
@@ -29,11 +31,12 @@ export const getXBarcodeCoordinate = (pageWidth, position) => {
   return xCoordinate;
 };
 
-export async function splitPdfAndConvertToTiff(
+export async function splitPdfAndAddBarCode(
   pdfDoc,
   numberOfPages,
   barcode,
-  position
+  position,
+  fileType
 ) {
   const pagesPromises = [];
   for (let i = 0; i < numberOfPages; i++) {
@@ -44,9 +47,18 @@ export async function splitPdfAndConvertToTiff(
     if (i == 0) {
       pdfBytes = await addBarCodeToPdf(pdfBytes, barcode, position);
     }
-    pagesPromises.push(
-      convertToTiff(Buffer.from(pdfBytes), `output-${i + 1}.tiff`)
-    );
+    if (fileType === "tiff") {
+      pagesPromises.push(
+        convertToTiff(Buffer.from(pdfBytes), `output-${i + 1}.${fileType}`)
+      );
+    } else {
+      pagesPromises.push(
+        grayscaleAndCompressPdf(
+          Buffer.from(pdfBytes),
+          `output-${i + 1}.${fileType}`
+        )
+      );
+    }
   }
 
   const res = await Promise.all(pagesPromises);
@@ -60,7 +72,8 @@ export const addBarCodeToPdf = async (pdfByteStream, barCodeText, position) => {
     bcid: "interleaved2of5",
     text: barCodeText,
     scale: 3,
-    height: 5,
+    height: 6,
+    backgroundcolor: "ffffff",
     includetext: true,
     textxalign: "center",
     textsize: 13,
@@ -163,9 +176,9 @@ export const cleanUp = (numberOfPages) => {
   }
 };
 
-export const cleanUpAllTiff = () => {
+export const cleanUpAllFiles = () => {
   const path = "./";
-  let regex = /[.]tiff$/;
+  let regex = /[.](tiff|pdf)$/;
   fs.readdirSync(path)
     .filter((f) => regex.test(f))
     .map((f) => fs.unlinkSync(path + f));
@@ -183,4 +196,77 @@ export const compressTiff = (tiffBytes) => {
         }
       });
   });
+};
+
+export const uploadToS3 = async (s3Client, body, key) => {
+  const putCommand = new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+    Body: body,
+    ACL: "public-read",
+  });
+
+  const resp = await s3Client.send(putCommand).catch((err) => {
+    console.error("Error uploading to S3: ", err);
+    return "err";
+  });
+
+  if (resp === "err") {
+    throw new Error("Error uploading to S3");
+  }
+};
+
+export const getPresignedUrl = async (s3Client, key) => {
+  const command = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET,
+    Key: key,
+  });
+
+  const tiffUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: 3600,
+  }).catch((err) => {
+    console.error(
+      `Error generating s3 presigned url for file :: ${key} :: ${err}`
+    );
+  });
+
+  return tiffUrl;
+};
+
+export const grayscaleAndCompressPdf = async (pdfBuffer, filename) => {
+  return new Promise((resolve, reject) => {
+    gm.subClass({ imageMagick: true })(pdfBuffer)
+      .setFormat("pdf")
+      .background("white")
+      .density(200, 200)
+      .type("grayscale")
+      .compress("JPEG")
+      .flatten()
+      .write(filename, function (error) {
+        if (error) {
+          console.error("Error saving file", error);
+          reject(error);
+        } else {
+          resolve({ status: "success" });
+        }
+      });
+  });
+};
+
+export const mergePdfs = async (numberOfPages) => {
+  const merger = new PDFMerger();
+
+  let output_path = "./multipage.pdf";
+
+  for (let i = 0; i < numberOfPages; i++) {
+    if (fs.existsSync(`./output-${i + 1}.pdf`)) {
+      await merger.add(`./output-${i + 1}.pdf`);
+    } else {
+      console.error("Couldn't find output file ", `output-${i + 1}.pdf`);
+    }
+  }
+
+  await merger.save("./multipage.pdf");
+
+  return output_path;
 };
