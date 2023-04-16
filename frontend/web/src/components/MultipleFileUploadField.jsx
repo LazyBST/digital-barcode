@@ -59,29 +59,59 @@ export function MultipleFileUploadField() {
   });
 
   const [barcodePosition, setBarcodePosition] = useState("LEFT");
+  const [exportType, setExportType] = useState("TIFF");
 
   const handleBarcodePosition = (event) => {
     setBarcodePosition(event.target.value);
   };
 
+  const handleExportType = (event) => {
+    setExportType(event.target.value);
+  };
+
   return (
     <React.Fragment>
       <Grid item>
-        <FormControl sx={{ m: 1, minWidth: 120 }}>
-        <InputLabel id="demo-controlled-open-select-label">Barcode Position</InputLabel>
-          <Select
-            labelId="demo-controlled-open-select-label"
-            id="demo-controlled-open-select"
-            value={barcodePosition}
-            label="Barcode Position"
-            onChange={handleBarcodePosition}
-            sx={{mb: 2}}
-            >
-            <MenuItem value={"LEFT"}>Left</MenuItem>
-            <MenuItem value={"RIGHT"}>Right</MenuItem>
-            <MenuItem value={"MIDDLE"}>Middle</MenuItem>
-          </Select>
-        </FormControl>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              p: 1,
+              m: 1,
+              bgcolor: 'background.paper',
+              borderRadius: 1,
+            }}
+          >
+            <FormControl sx={{ m: 1, minWidth: 120 }}>
+              <InputLabel id="demo-controlled-open-select-label">Barcode Position</InputLabel>
+                <Select
+                  labelId="demo-controlled-open-select-label"
+                  id="demo-controlled-open-select"
+                  value={barcodePosition}
+                  label="Barcode Position"
+                  onChange={handleBarcodePosition}
+                  sx={{mb: 2}}
+                >
+                  <MenuItem value={"LEFT"}>Left</MenuItem>
+                  <MenuItem value={"RIGHT"}>Right</MenuItem>
+                  <MenuItem value={"MIDDLE"}>Middle</MenuItem>
+                </Select>
+            </FormControl>
+            <FormControl sx={{ m: 1, minWidth: 120 }}>
+              <InputLabel id="demo-controlled-open-select-export-as">Export As</InputLabel>
+                <Select
+                  labelId="demo-controlled-open-select-export-as"
+                  id="demo-controlled-open-select-export-as"
+                  value={exportType}
+                  label="Export As"
+                  onChange={handleExportType}
+                  sx={{mb: 2}}
+                >
+                  <MenuItem value={"TIFF"}>tiff</MenuItem>
+                  <MenuItem value={"PDF"}>pdf</MenuItem>
+                </Select>
+            </FormControl>
+          </Box>
         <Box {...getRootProps()} sx={useStyles}>
           <input {...getInputProps()} />
           <p>Drag 'n' drop some files here, or click to select files</p>
@@ -103,6 +133,7 @@ export function MultipleFileUploadField() {
                 barcodePosition={barcodePosition}
                 onUpload={onUpload}
                 file={fileWrapper.file}
+                exportType={exportType}
               />
             )}
           </Grid>

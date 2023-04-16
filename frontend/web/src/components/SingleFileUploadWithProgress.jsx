@@ -5,7 +5,7 @@ import { Grid, LinearProgress } from "@mui/material";
 import { axiosInstance } from "@/utils";
 import { FileHeader } from "./FileHeader";
 
-export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition }) {
+export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, exportType }) {
   const [progress, setProgress] = useState(0);
   const [objectKey, setObjectKey] = useState();
   const [downloading, setDownloading] = useState(false);
@@ -17,7 +17,8 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition }
       "/barcode", 
       {
         object_key: String(objectKey),
-        barcode_position: String(barcodePosition)
+        barcode_position: String(barcodePosition),
+        export_type: String(exportType),
       });
 
       const link = document.createElement('a');
