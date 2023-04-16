@@ -10,23 +10,22 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import cors from "cors";
-import { getXBarcodeCoordinate } from "./utils/utils.js";
 import {
-  BARCODEYCOORDINATEADJUSTMENT,
-  ADDITIONALPAGEHEIGHT,
   RANDOMNUMBERMULTIPLIER,
   EXPORT_TYPES,
+  BARCODE_GENERATION_RETRY,
 } from "./utils/constants.js";
 
 import {
   splitPdfAndAddBarCode,
   multipageMerge,
-  addBarCodeToPdf,
   readFile,
   uploadToS3,
   cleanUpAllFiles,
   getPresignedUrl,
   mergePdfs,
+  checkIfBarCodeAlreadyExists,
+  pushDataInDb,
 } from "./utils/utils.js";
 
 const app = express();
@@ -43,15 +42,43 @@ const s3Client = new S3Client({
 });
 
 app.get("/signedURL", async (req, res) => {
-  const barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
-  const objectKey = barcode + ".pdf";
-
-  const command = new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET,
-    Key: objectKey,
-  });
-
+  const query = req.query;
+  let barcode = "";
+  const tableName = query.tableName;
+  const prefix = query.prefix;
+  let zeroAppendedBarcode = "";
   try {
+    if (tableName) {
+      for (let i = 0; i < BARCODE_GENERATION_RETRY; i++) {
+        barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
+        zeroAppendedBarcode = "0" + barcode;
+
+        const isExits = await checkIfBarCodeAlreadyExists(
+          tableName,
+          zeroAppendedBarcode
+        );
+
+        if (!isExits) {
+          break;
+        } else {
+          zeroAppendedBarcode = "0";
+        }
+      }
+    } else {
+      barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
+      zeroAppendedBarcode = "0" + barcode;
+    }
+
+    if (zeroAppendedBarcode === "0")
+      throw new Error("can't generate unique barcode");
+
+    const objectKey = (prefix || "") + zeroAppendedBarcode + ".pdf";
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: objectKey,
+    });
+
     const uploadUrl = await getSignedUrl(s3Client, command, {
       expiresIn: 3600,
     }).catch((err) => {
@@ -60,9 +87,14 @@ app.get("/signedURL", async (req, res) => {
       );
     });
 
+    if (tableName) {
+      await pushDataInDb(tableName, zeroAppendedBarcode, prefix);
+    }
+
     res.json({
       upload_url: uploadUrl,
-      object_key: barcode,
+      object_key: zeroAppendedBarcode,
+      prefix,
     });
   } catch (err) {
     console.error(err);
@@ -84,6 +116,9 @@ app.post("/barcode", async (req, res) => {
       });
     }
 
+    const barCodeText = params.barCodeText;
+    const fileName = (params?.prefix || "") + barCodeText;
+
     const exportType = params?.export_type || "TIFF";
 
     if (!EXPORT_TYPES.includes(exportType)) {
@@ -95,14 +130,13 @@ app.post("/barcode", async (req, res) => {
 
     const getCommand = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
-      Key: params.barCodeText + ".pdf",
+      Key: fileName + ".pdf",
     });
 
     const response = await s3Client.send(getCommand);
     const pdfBytes = await response.Body.transformToByteArray();
 
     const inputPdfBytes = Buffer.from(pdfBytes);
-    const barCodeText = params.barCodeText;
     const position = params?.barcode_position;
 
     cleanUpAllFiles();
@@ -121,7 +155,7 @@ app.post("/barcode", async (req, res) => {
       const outputPath = await mergePdfs(numberOfPages);
       const outputMultiPagePdf = readFile(outputPath);
 
-      const fileKey = params.barCodeText + "-modified.pdf";
+      const fileKey = fileName + "-modified.pdf";
 
       await uploadToS3(s3Client, outputMultiPagePdf, fileKey);
 
@@ -145,7 +179,7 @@ app.post("/barcode", async (req, res) => {
 
       // const compressedTiff = await compressTiff(outputMultiPageTiff);
 
-      const fileKey = params.barCodeText + ".tiff";
+      const fileKey = fileName + ".tiff";
 
       await uploadToS3(s3Client, outputMultiPageTiff, fileKey);
 
