@@ -95,6 +95,14 @@ export class APIStack extends Stack {
       securityGroup
     );
 
+    const lambdaARole = new iam.Role(this, 'LambdaRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+    });
+
+    lambdaARole.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess')
+    );
+
     const graphqlHandler = new lambda.Function(this, "graphqlHandler", {
       runtime: lambda.Runtime.GO_1_X,
       functionName: `${STAGE}-digital-barcode`,
@@ -108,12 +116,16 @@ export class APIStack extends Stack {
         subnets: vpc.privateSubnets,
       },
       securityGroups: [vpcSecurityGroup],
+      role: lambdaARole
     });
 
     const getGraphqlHandler = new LambdaIntegration(graphqlHandler, {
       proxy: true,
     });
     graphqlHandler.addEnvironment("FILES_BUCKET_NAME", s3BucketName || "");
+    graphqlHandler.addEnvironment("USERS_TABLE", `${STAGE}-digital-barcode-users`);
+    graphqlHandler.addEnvironment("PROPERTIES_TABLE", `${STAGE}-digital-barcode-properties`);
+    graphqlHandler.addEnvironment("FILES_TABLE", `${STAGE}-digital-barcode-files`);
 
     graphqlHandler.role?.attachInlinePolicy(
       new iam.Policy(this, "s3-bucket-policy", {
