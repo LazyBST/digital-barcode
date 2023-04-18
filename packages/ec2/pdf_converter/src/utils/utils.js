@@ -13,7 +13,7 @@ import PDFMerger from "pdf-merger-js";
 import {
   DynamoDBClient,
   BatchExecuteStatementCommand,
-  ScanCommand,
+  QueryCommand,
   PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { randomUUID } from "crypto";
@@ -307,7 +307,7 @@ export const pushDataInDb = async (tableName, barcode, prefix) => {
   const docClient = getDynamoClient({ apiVersion: "2012-08-10" });
   const item = {
     property_id: {
-      S: randomUUID(),
+      S: prefix,
     },
     barcode_number: {
       S: String(barcode),
@@ -316,12 +316,6 @@ export const pushDataInDb = async (tableName, barcode, prefix) => {
       S: new Date().toISOString(),
     },
   };
-
-  if (prefix) {
-    item["prefix"] = {
-      S: prefix,
-    };
-  }
 
   const params = new PutItemCommand({
     TableName: tableName,
@@ -339,14 +333,17 @@ export const checkIfBarCodeAlreadyExists = async (
   barcode,
   prefix
 ) => {
-  const filterExpression = "barcode_number = :barcode";
-
   const expressionAttributeValues = {
     ":barcode": { S: String(barcode) },
+    ":prefix": { S: prefix },
   };
-  const params = new ScanCommand({
+
+  const keyConditionExpression =
+    "property_id = :prefix and barcode_number = :barcode";
+
+  const params = new QueryCommand({
     TableName: tableName,
-    FilterExpression: filterExpression,
+    KeyConditionExpression: keyConditionExpression,
     ExpressionAttributeValues: expressionAttributeValues,
   });
   const docClient = getDynamoClient();

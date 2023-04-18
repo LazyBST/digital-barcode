@@ -48,14 +48,15 @@ app.get("/signedURL", async (req, res) => {
   const prefix = query.prefix;
   let zeroAppendedBarcode = "";
   try {
-    if (tableName) {
+    if (tableName && prefix) {
       for (let i = 0; i < BARCODE_GENERATION_RETRY; i++) {
         barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
         zeroAppendedBarcode = "0" + barcode;
 
         const isExits = await checkIfBarCodeAlreadyExists(
           tableName,
-          zeroAppendedBarcode
+          zeroAppendedBarcode,
+          prefix
         );
 
         if (!isExits) {
@@ -87,7 +88,7 @@ app.get("/signedURL", async (req, res) => {
       );
     });
 
-    if (tableName) {
+    if (tableName && prefix) {
       await pushDataInDb(tableName, zeroAppendedBarcode, prefix);
     }
 
