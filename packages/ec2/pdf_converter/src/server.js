@@ -73,7 +73,8 @@ app.get("/signedURL", async (req, res) => {
     if (zeroAppendedBarcode === "0")
       throw new Error("can't generate unique barcode");
 
-    const objectKey = (prefix || "") + zeroAppendedBarcode + ".pdf";
+    const objectKey =
+      (prefix || "") + zeroAppendedBarcode + "-original" + ".pdf";
 
     const command = new PutObjectCommand({
       Bucket: process.env.S3_BUCKET,
@@ -131,7 +132,7 @@ app.post("/barcode", async (req, res) => {
 
     const getCommand = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
-      Key: fileName + ".pdf",
+      Key: fileName + "-original.pdf",
     });
 
     const response = await s3Client.send(getCommand);
@@ -139,8 +140,6 @@ app.post("/barcode", async (req, res) => {
 
     const inputPdfBytes = Buffer.from(pdfBytes);
     const position = params?.barcode_position;
-
-    cleanUpAllFiles();
 
     const pdfDoc = await PDFDocument.load(inputPdfBytes);
 
@@ -156,11 +155,12 @@ app.post("/barcode", async (req, res) => {
       const outputPath = await mergePdfs(numberOfPages);
       const outputMultiPagePdf = readFile(outputPath);
 
-      const fileKey = fileName + "-modified.pdf";
+      const fileKey = fileName + ".pdf";
 
       await uploadToS3(s3Client, outputMultiPagePdf, fileKey);
 
       const url = await getPresignedUrl(s3Client, fileKey);
+      cleanUpAllFiles();
 
       return res.json({
         url,
@@ -186,6 +186,7 @@ app.post("/barcode", async (req, res) => {
 
       const url = await getPresignedUrl(s3Client, fileKey);
 
+      cleanUpAllFiles();
       return res.json({
         url,
         tiff_url: url,
