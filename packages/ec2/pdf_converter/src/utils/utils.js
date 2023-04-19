@@ -10,6 +10,15 @@ import {
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import PDFMerger from "pdf-merger-js";
+import {
+  DynamoDBClient,
+  BatchExecuteStatementCommand,
+  QueryCommand,
+  PutItemCommand,
+} from "@aws-sdk/client-dynamodb";
+import { randomUUID } from "crypto";
+
+let dynamoClient;
 
 export const getXBarcodeCoordinate = (pageWidth, position) => {
   let xCoordinate;
@@ -269,4 +278,87 @@ export const mergePdfs = async (numberOfPages) => {
   await merger.save("./multipage.pdf");
 
   return output_path;
+};
+
+export const getFileNameFromBarcode = (prefix, barcode, extension) => {
+  return prefix + barcode + "." + extension;
+};
+
+export const extractBarcodeFromFileName = (fileName) => {
+  const regexString = /(?<=0).*$/;
+  return fileName.match(regexString)?.[0];
+};
+
+export const getDynamoClient = () => {
+  if (!dynamoClient) {
+    dynamoClient = new DynamoDBClient({
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY_ID,
+        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+      },
+      region: process.env.S3_REGION,
+    });
+  }
+
+  return dynamoClient;
+};
+
+export const pushDataInDb = async (tableName, barcode, prefix) => {
+  const docClient = getDynamoClient({ apiVersion: "2012-08-10" });
+  const item = {
+    property_id: {
+      S: prefix,
+    },
+    barcode_number: {
+      S: String(barcode),
+    },
+    created_at: {
+      S: new Date().toISOString(),
+    },
+  };
+
+  const params = new PutItemCommand({
+    TableName: tableName,
+    Item: item,
+    ReturnConsumedCapacity: "TOTAL",
+  });
+
+  const response = await docClient.send(params);
+
+  return response;
+};
+
+export const checkIfBarCodeAlreadyExists = async (
+  tableName,
+  barcode,
+  prefix
+) => {
+  const expressionAttributeValues = {
+    ":barcode": { S: String(barcode) },
+    ":prefix": { S: prefix },
+  };
+
+  const keyConditionExpression =
+    "property_id = :prefix and barcode_number = :barcode";
+
+  const params = new QueryCommand({
+    TableName: tableName,
+    KeyConditionExpression: keyConditionExpression,
+    ExpressionAttributeValues: expressionAttributeValues,
+  });
+  const docClient = getDynamoClient();
+
+  const data = await docClient.send(params);
+
+  const { Items } = data;
+
+  let isExist = false;
+  for (let item of Items) {
+    if (item?.barcode_number?.S === barcode && item?.prefix?.S === prefix) {
+      isExist = true;
+      break;
+    }
+  }
+
+  return isExist;
 };

@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.310.0",
     "@aws-sdk/client-s3": "^3.289.0",
     "@aws-sdk/s3-request-presigner": "^3.289.0",
     "bluebird": "^3.7.2",
