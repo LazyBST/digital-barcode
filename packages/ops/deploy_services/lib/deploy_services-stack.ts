@@ -103,6 +103,11 @@ export class APIStack extends Stack {
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonDynamoDBFullAccess')
     );
 
+    lambdaARole.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaVPCAccessExecutionRole')
+    );
+
+
     const graphqlHandler = new lambda.Function(this, "graphqlHandler", {
       runtime: lambda.Runtime.GO_1_X,
       functionName: `${STAGE}-digital-barcode`,

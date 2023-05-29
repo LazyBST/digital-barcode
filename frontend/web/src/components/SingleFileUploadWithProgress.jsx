@@ -19,6 +19,7 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
         object_key: String(objectKey),
         barcode_position: String(barcodePosition),
         export_type: String(exportType),
+        property: String(process.env.NEXT_PUBLIC_PROPERTY),
       });
 
       const link = document.createElement('a');
@@ -44,7 +45,9 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
 
     async function upload() {
       try {
-        const { data } = await axiosInstance.get("/signedURL", {
+        const { data } = await axiosInstance.get(
+          `/signedURL?property=${process.env.NEXT_PUBLIC_PROPERTY}`,
+        {
           cancelToken: cancelTokenSource.token,
         });
         const { object_key, upload_url: uploadUrl } = data;

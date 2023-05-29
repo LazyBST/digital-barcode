@@ -17,7 +17,7 @@ export class S3Stack extends Stack {
     const bucketName = `${STAGE}-digital-barcode-files-data`
     const s3Bucket = new s3.Bucket(this,`${STAGE}DigitalBarcodeData`,{
       bucketName: bucketName,
-      publicReadAccess: true,
+      // publicReadAccess: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       encryption: s3.BucketEncryption.S3_MANAGED,
       versioned: false,

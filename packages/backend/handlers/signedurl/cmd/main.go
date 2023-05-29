@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -33,9 +34,14 @@ func SignedUrlHandler(ctx *gin.Context) {
 	// 		"error": err.Error(),
 	// 	})
 	// }
-
+	propertyCode := ctx.Query("property")
+	filesTable := os.Getenv("FILES_TABLE")
+	url := fmt.Sprintf(
+		"http://34.222.158.209:80/signedURL?tableName=%s&prefix=%s",
+		filesTable,
+		propertyCode)
 	httpClient := http.Client{Timeout: 5 * time.Minute}
-	resp, err := httpClient.Get("http://34.222.158.209:80/signedURL")
+	resp, err := httpClient.Get(url)
 
 	if err != nil {
 		fmt.Println("Http cal error", err)
@@ -60,7 +66,7 @@ func SignedUrlHandler(ctx *gin.Context) {
 
 	response := struct {
 		UploadUrl string `json:"upload_url"`
-		ObjectKey int    `json:"object_key"`
+		ObjectKey string `json:"object_key"`
 	}{}
 
 	err = json.Unmarshal(body, &response)

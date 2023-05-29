@@ -9,7 +9,7 @@ console.log(CDK_DEFAULT_REGION, CDK_DEFAULT_ACCOUNT)
 
 const app = new cdk.App();
 
-new APIStack(app, 'DigitalBarcodeAPIStack',  {
+new APIStack(app, `${STAGE}-DigitalBarcodeAPIStack`,  {
   env: { region: CDK_DEFAULT_REGION, account: CDK_DEFAULT_ACCOUNT },
 });
 
