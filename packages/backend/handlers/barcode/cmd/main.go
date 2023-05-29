@@ -16,6 +16,7 @@ type Request struct {
 	ObjectKey       string `json:"object_key"`
 	BarcodePosition string `json:"barcode_position"`
 	ExportType      string `json:"export_type"`
+	Property        string `json:"property"`
 }
 
 func BarcodeHandler(ctx *gin.Context) {
@@ -52,11 +53,13 @@ func BarcodeHandler(ctx *gin.Context) {
 			BarCodeText     string `json:"barCodeText"`
 			BarcodePosition string `json:"barcode_position"`
 			ExportType      string `json:"export_type"`
+			Prefix          string `json:"prefix"`
 		} `json:"params"`
 	}{}
 	request.Params.BarCodeText = requestPayload.ObjectKey
 	request.Params.BarcodePosition = requestPayload.BarcodePosition
 	request.Params.ExportType = requestPayload.ExportType
+	request.Params.Prefix = requestPayload.Property
 
 	requestBody, err := json.Marshal(request)
 	if err != nil {
