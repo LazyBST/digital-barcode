@@ -153,7 +153,7 @@ app.post("/barcode", async (req, res) => {
         position,
         "pdf"
       );
-      const outputPath = await mergePdfs(numberOfPages);
+      const outputPath = await mergePdfs(numberOfPages, barCodeText);
       const outputMultiPagePdf = readFile(outputPath);
 
       const fileKey = fileName + ".pdf";
@@ -176,7 +176,7 @@ app.post("/barcode", async (req, res) => {
         "tiff"
       );
 
-      const outputPath = multipageMerge(numberOfPages);
+      const outputPath = multipageMerge(numberOfPages, barCodeText);
       let outputMultiPageTiff = readFile(outputPath);
 
       // const compressedTiff = await compressTiff(outputMultiPageTiff);

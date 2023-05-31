@@ -58,13 +58,16 @@ export async function splitPdfAndAddBarCode(
     }
     if (fileType === "tiff") {
       pagesPromises.push(
-        convertToTiff(Buffer.from(pdfBytes), `output-${i + 1}.${fileType}`)
+        convertToTiff(
+          Buffer.from(pdfBytes),
+          `${barcode}-output-${i + 1}.${fileType}`
+        )
       );
     } else {
       pagesPromises.push(
         grayscaleAndCompressPdf(
           Buffer.from(pdfBytes),
-          `output-${i + 1}.${fileType}`
+          `${barcode}-output-${i + 1}.${fileType}`
         )
       );
     }
@@ -138,16 +141,19 @@ export const convertToTiff = (pdfBuffer, filename) => {
   });
 };
 
-export const multipageMerge = (numberOfPages) => {
-  let output_path = "./multipage.tiff";
+export const multipageMerge = (numberOfPages, barCodeText) => {
+  let output_path = `./${barCodeText}-multipage.tiff`;
 
   let input_paths = [];
 
   for (let i = 0; i < numberOfPages; i++) {
-    if (fs.existsSync(`./output-${i + 1}.tiff`)) {
-      input_paths.push(`./output-${i + 1}.tiff`);
+    if (fs.existsSync(`./${barCodeText}-output-${i + 1}.tiff`)) {
+      input_paths.push(`./${barCodeText}-output-${i + 1}.tiff`);
     } else {
-      console.error("Couldn't find output file ", `output-${i + 1}.tiff`);
+      console.error(
+        "Couldn't find output file ",
+        `${barCodeText}-output-${i + 1}.tiff`
+      );
     }
   }
 
@@ -165,19 +171,19 @@ export const readFile = (path) => {
   throw new Error("Internal Server Error");
 };
 
-export const cleanUp = (numberOfPages) => {
+export const cleanUp = (numberOfPages, barCodeText) => {
   try {
     for (let i = 0; i < numberOfPages; i++) {
-      if (fs.existsSync(`./output-${i + 1}.tiff`)) {
-        fs.unlinkSync(`./output-${i + 1}.tiff`);
+      if (fs.existsSync(`./${barCodeText}-output-${i + 1}.tiff`)) {
+        fs.unlinkSync(`./${barCodeText}-output-${i + 1}.tiff`);
       } else {
-        console.error("File not found ", `output-${i + 1}.tiff`);
+        console.error("File not found ", `${barCodeText}-output-${i + 1}.tiff`);
       }
     }
-    if (fs.existsSync("./multipage.tiff")) {
-      fs.unlinkSync("./multipage.tiff");
+    if (fs.existsSync(`./${barCodeText}-multipage.tiff`)) {
+      fs.unlinkSync(`./${barCodeText}-multipage.tiff`);
     } else {
-      console.error("File not found multipage.tiff");
+      console.error(`File not found ${barCodeText}-multipage.tiff`);
     }
   } catch (err) {
     console.error(err);
@@ -262,20 +268,23 @@ export const grayscaleAndCompressPdf = async (pdfBuffer, filename) => {
   });
 };
 
-export const mergePdfs = async (numberOfPages) => {
+export const mergePdfs = async (numberOfPages, barcodeText) => {
   const merger = new PDFMerger();
 
-  let output_path = "./multipage.pdf";
+  let output_path = `./${barcodeText}-multipage.pdf`;
 
   for (let i = 0; i < numberOfPages; i++) {
-    if (fs.existsSync(`./output-${i + 1}.pdf`)) {
-      await merger.add(`./output-${i + 1}.pdf`);
+    if (fs.existsSync(`./${barcodeText}-output-${i + 1}.pdf`)) {
+      await merger.add(`./${barcodeText}-output-${i + 1}.pdf`);
     } else {
-      console.error("Couldn't find output file ", `output-${i + 1}.pdf`);
+      console.error(
+        "Couldn't find output file ",
+        `${barcodeText}-output-${i + 1}.pdf`
+      );
     }
   }
 
-  await merger.save("./multipage.pdf");
+  await merger.save(output_path);
 
   return output_path;
 };
