@@ -59,7 +59,7 @@ export function MultipleFileUploadField() {
   });
 
   const [barcodePosition, setBarcodePosition] = useState("LEFT");
-  const [exportType, setExportType] = useState("TIFF");
+  const [exportType, setExportType] = useState("PDF");
 
   const handleBarcodePosition = (event) => {
     setBarcodePosition(event.target.value);
