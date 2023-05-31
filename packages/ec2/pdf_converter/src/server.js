@@ -119,6 +119,7 @@ app.post("/barcode", async (req, res) => {
     }
 
     const barCodeText = params.barCodeText;
+    console.log("generating response for barCode: " + barCodeText);
     const fileName = (params?.prefix || "") + barCodeText;
 
     const exportType = params?.export_type || "PDF";
