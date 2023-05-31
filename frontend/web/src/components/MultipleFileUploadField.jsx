@@ -1,4 +1,4 @@
-import { Box, Grid, Select, MenuItem, InputLabel, FormControl } from "@mui/material";
+import { Box, Grid, Select, MenuItem, InputLabel, FormControl, Button } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 
@@ -24,6 +24,15 @@ const useStyles = (theme) => ({
 
 export function MultipleFileUploadField() {
   const [files, setFiles] = useState([]);
+  const [downloadAllTrigger, setDownlaodAllTrigger] = useState(0);
+
+  const triggerDownloadAll = () => {
+    console.log("Downloading all files", downloadAllTrigger);
+    setDownlaodAllTrigger(1)
+    setTimeout(() => {
+      setDownlaodAllTrigger(0)
+    }, 500)
+  }
 
   const onDrop = useCallback(
     (accFiles, rejFiles) => {
@@ -117,6 +126,14 @@ export function MultipleFileUploadField() {
           <p>Drag 'n' drop some files here, or click to select files</p>
         </Box>
       </Grid>
+      {files.length ?  
+      <Button
+        size="medium"
+        style={{margin: "20px"}}
+        variant="contained"
+        onClick={triggerDownloadAll}
+      >Download All
+      </Button> : "" }
 
       {files.map((fileWrapper) => {
         const isError = Boolean(fileWrapper.errors.length);
@@ -134,6 +151,7 @@ export function MultipleFileUploadField() {
                 onUpload={onUpload}
                 file={fileWrapper.file}
                 exportType={exportType}
+                downloadTrigger={downloadAllTrigger}
               />
             )}
           </Grid>

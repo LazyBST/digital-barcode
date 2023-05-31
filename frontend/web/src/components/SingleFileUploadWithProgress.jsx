@@ -5,7 +5,7 @@ import { Grid, LinearProgress } from "@mui/material";
 import { axiosInstance } from "@/utils";
 import { FileHeader } from "./FileHeader";
 
-export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, exportType }) {
+export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, exportType, downloadTrigger }) {
   const [progress, setProgress] = useState(0);
   const [objectKey, setObjectKey] = useState();
   const [downloading, setDownloading] = useState(false);
@@ -19,25 +19,27 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
         object_key: String(objectKey),
         barcode_position: String(barcodePosition),
         export_type: String(exportType),
-        property: String(process.env.NEXT_PUBLIC_PROPERTY),
+        // property: String(process.env.NEXT_PUBLIC_PROPERTY),
       });
 
       const link = document.createElement('a');
       link.href = data.tiff_url;
       link.setAttribute(
         'download',
-        `${objectKey}.tiff`,
+        `${objectKey}.${exportType?.toLowerCase()}`,
       );
   
       // Append to html link element page
       document.body.appendChild(link);
   
       // Start download
-      link.click();
-  
+      setTimeout(()=> {
+        link.click();
       // Clean up and remove the link
-      link.parentNode.removeChild(link);
-      setDownloading(false);
+        link.parentNode.removeChild(link);
+        setDownloading(false);
+    }, 500);
+
   };
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
     async function upload() {
       try {
         const { data } = await axiosInstance.get(
-          `/signedURL?property=${process.env.NEXT_PUBLIC_PROPERTY}`,
+          `/signedURL`,//?property=${process.env.NEXT_PUBLIC_PROPERTY}`,
         {
           cancelToken: cancelTokenSource.token,
         });
@@ -68,6 +70,13 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
       cancelTokenSource.cancel();
     };
   }, []);
+
+  useEffect(() => {
+    console.log({downloadTrigger})
+    if(downloadTrigger){
+       onDownload();
+    }
+  }, [downloadTrigger])
 
   return (
     <Grid item>
