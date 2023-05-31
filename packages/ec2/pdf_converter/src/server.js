@@ -121,7 +121,7 @@ app.post("/barcode", async (req, res) => {
     const barCodeText = params.barCodeText;
     const fileName = (params?.prefix || "") + barCodeText;
 
-    const exportType = params?.export_type || "TIFF";
+    const exportType = params?.export_type || "PDF";
 
     if (!EXPORT_TYPES.includes(exportType)) {
       return res.status(400).json({
