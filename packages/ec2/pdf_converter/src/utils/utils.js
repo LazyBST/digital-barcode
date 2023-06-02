@@ -132,11 +132,13 @@ export const convertToTiff = (pdfBuffer, filename) => {
       .flatten()
       .write(filename, function (error) {
         if (error) {
-          console.error("Error saving file", error);
           reject(error);
         } else {
           resolve({ status: "success" });
         }
+      })
+      .catch((err) => {
+        console.error("Error saving file", err);
       });
   });
 };
