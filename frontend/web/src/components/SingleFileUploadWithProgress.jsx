@@ -5,7 +5,12 @@ import { Grid, LinearProgress } from "@mui/material";
 import { axiosInstance } from "@/utils";
 import { FileHeader } from "./FileHeader";
 
-export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, exportType, downloadTrigger }) {
+export function SingleFileUploadWithProgress({
+  file,
+  onUpload,
+  barcodePosition,
+  exportType,
+}) {
   const [progress, setProgress] = useState(0);
   const [objectKey, setObjectKey] = useState();
   const [downloading, setDownloading] = useState(false);
@@ -13,33 +18,27 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
   const onDownload = async () => {
     // Write on download function using objectKey
     setDownloading(true);
-    const {data} = await axiosInstance.post(
-      "/barcode", 
-      {
-        object_key: String(objectKey),
-        barcode_position: String(barcodePosition),
-        export_type: String(exportType),
-        // property: String(process.env.NEXT_PUBLIC_PROPERTY),
-      });
+    const { data } = await axiosInstance.post("/barcode", {
+      object_key: String(objectKey),
+      barcode_position: String(barcodePosition),
+      export_type: String(exportType),
+      // property: String(process.env.NEXT_PUBLIC_PROPERTY),
+    });
 
-      const link = document.createElement('a');
-      link.href = data.tiff_url;
-      link.setAttribute(
-        'download',
-        `${objectKey}.${exportType?.toLowerCase()}`,
-      );
-  
-      // Append to html link element page
-      document.body.appendChild(link);
-  
-      // Start download
-      setTimeout(()=> {
-        link.click();
+    const link = document.createElement("a");
+    link.href = data.tiff_url;
+    link.setAttribute("download", `${objectKey}.${exportType?.toLowerCase()}`);
+
+    // Append to html link element page
+    document.body.appendChild(link);
+
+    // Start download
+    setTimeout(() => {
+      link.click();
       // Clean up and remove the link
-        link.parentNode.removeChild(link);
-        setDownloading(false);
+      link.parentNode.removeChild(link);
+      setDownloading(false);
     }, 500);
-
   };
 
   useEffect(() => {
@@ -48,10 +47,11 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
     async function upload() {
       try {
         const { data } = await axiosInstance.get(
-          `/signedURL`,//?property=${process.env.NEXT_PUBLIC_PROPERTY}`,
-        {
-          cancelToken: cancelTokenSource.token,
-        });
+          `/signedURL`, //?property=${process.env.NEXT_PUBLIC_PROPERTY}`,
+          {
+            cancelToken: cancelTokenSource.token,
+          }
+        );
         const { object_key, upload_url: uploadUrl } = data;
 
         const url = await uploadFile(uploadUrl, file, setProgress);
@@ -60,7 +60,7 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
         setObjectKey(object_key);
         // Call barcode API to download tiff file using the download Button
 
-        onUpload(file, url);
+        onUpload(file, url, object_key);
       } catch (error) {}
     }
 
@@ -71,16 +71,13 @@ export function SingleFileUploadWithProgress({ file, onUpload, barcodePosition, 
     };
   }, []);
 
-  useEffect(() => {
-    console.log({downloadTrigger})
-    if(downloadTrigger){
-       onDownload();
-    }
-  }, [downloadTrigger])
-
   return (
     <Grid item>
-      <FileHeader file={file} onDownload={onDownload} disableDownload={downloading}/>
+      <FileHeader
+        file={file}
+        onDownload={onDownload}
+        disableDownload={downloading}
+      />
       <LinearProgress variant="determinate" value={progress} />
     </Grid>
   );
