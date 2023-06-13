@@ -119,9 +119,10 @@ app.post("/barcode", async (req, res) => {
     }
 
     const barCodeText = params.barCodeText;
+    console.log("generating response for barCode: " + barCodeText);
     const fileName = (params?.prefix || "") + barCodeText;
 
-    const exportType = params?.export_type || "TIFF";
+    const exportType = params?.export_type || "PDF";
 
     if (!EXPORT_TYPES.includes(exportType)) {
       return res.status(400).json({
@@ -152,7 +153,7 @@ app.post("/barcode", async (req, res) => {
         position,
         "pdf"
       );
-      const outputPath = await mergePdfs(numberOfPages);
+      const outputPath = await mergePdfs(numberOfPages, barCodeText);
       const outputMultiPagePdf = readFile(outputPath);
 
       const fileKey = fileName + ".pdf";
@@ -175,7 +176,7 @@ app.post("/barcode", async (req, res) => {
         "tiff"
       );
 
-      const outputPath = multipageMerge(numberOfPages);
+      const outputPath = multipageMerge(numberOfPages, barCodeText);
       let outputMultiPageTiff = readFile(outputPath);
 
       // const compressedTiff = await compressTiff(outputMultiPageTiff);

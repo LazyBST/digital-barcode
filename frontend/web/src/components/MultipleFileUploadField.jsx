@@ -1,9 +1,19 @@
-import { Box, Grid, Select, MenuItem, InputLabel, FormControl } from "@mui/material";
+import {
+  Box,
+  Grid,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Button,
+} from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 
 import { UploadError } from "./UploadError";
 import { SingleFileUploadWithProgress } from "./SingleFileUploadWithProgress";
+import { axiosInstance } from "@/utils";
+import { FullScreenLoader } from "./FullScreenLoader";
 
 let currentId = 0;
 
@@ -24,6 +34,8 @@ const useStyles = (theme) => ({
 
 export function MultipleFileUploadField() {
   const [files, setFiles] = useState([]);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [areFilesUploaded, setAreFilesUploaded] = useState(false);
 
   const onDrop = useCallback(
     (accFiles, rejFiles) => {
@@ -40,11 +52,11 @@ export function MultipleFileUploadField() {
     [files, setFiles]
   );
 
-  function onUpload(file, url) {
+  function onUpload(file, url, objectKey) {
     setFiles((curr) =>
       curr.map((fw) => {
         if (fw.file === file) {
-          return { ...fw, url };
+          return { ...fw, url, objectKey };
         }
         return fw;
       })
@@ -59,7 +71,7 @@ export function MultipleFileUploadField() {
   });
 
   const [barcodePosition, setBarcodePosition] = useState("LEFT");
-  const [exportType, setExportType] = useState("TIFF");
+  const [exportType, setExportType] = useState("PDF");
 
   const handleBarcodePosition = (event) => {
     setBarcodePosition(event.target.value);
@@ -69,54 +81,122 @@ export function MultipleFileUploadField() {
     setExportType(event.target.value);
   };
 
+  const onDownloadAll = useCallback(
+    async (files) => {
+      setIsDownloading(true);
+      for (const file of files) {
+        const objectKey = file.objectKey;
+
+        const { data } = await axiosInstance
+          .post("/barcode", {
+            object_key: String(objectKey),
+            barcode_position: String(barcodePosition),
+            export_type: String(exportType),
+            // property: String(process.env.NEXT_PUBLIC_PROPERTY),
+          })
+          .catch((err) => {
+            console.error("error adding barcode to file", err);
+            return { data: undefined };
+          });
+
+        if (!data) continue;
+
+        const link = document.createElement("a");
+        link.href = data.tiff_url;
+        link.setAttribute(
+          "download",
+          `${objectKey}.${exportType?.toLowerCase()}`
+        );
+
+        // Append to html link element page
+        document.body.appendChild(link);
+
+        // Start download
+        setTimeout(() => {
+          link.click();
+          // Clean up and remove the link
+          link.parentNode.removeChild(link);
+        }, 500);
+      }
+      setIsDownloading(false);
+    },
+    [files]
+  );
+
+  useEffect(() => {
+    if (files.length && files.every((file) => !!file.objectKey)) {
+      setAreFilesUploaded(true);
+    } else {
+      setAreFilesUploaded(false);
+    }
+  }, [files]);
+
   return (
     <React.Fragment>
+      {isDownloading ? <FullScreenLoader /> : ""}
       <Grid item>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              p: 1,
-              m: 1,
-              bgcolor: 'background.paper',
-              borderRadius: 1,
-            }}
-          >
-            <FormControl sx={{ m: 1, minWidth: 120 }}>
-              <InputLabel id="demo-controlled-open-select-label">Barcode Position</InputLabel>
-                <Select
-                  labelId="demo-controlled-open-select-label"
-                  id="demo-controlled-open-select"
-                  value={barcodePosition}
-                  label="Barcode Position"
-                  onChange={handleBarcodePosition}
-                  sx={{mb: 2}}
-                >
-                  <MenuItem value={"LEFT"}>Left</MenuItem>
-                  <MenuItem value={"RIGHT"}>Right</MenuItem>
-                  <MenuItem value={"MIDDLE"}>Middle</MenuItem>
-                </Select>
-            </FormControl>
-            <FormControl sx={{ m: 1, minWidth: 120 }}>
-              <InputLabel id="demo-controlled-open-select-export-as">Export As</InputLabel>
-                <Select
-                  labelId="demo-controlled-open-select-export-as"
-                  id="demo-controlled-open-select-export-as"
-                  value={exportType}
-                  label="Export As"
-                  onChange={handleExportType}
-                  sx={{mb: 2}}
-                >
-                  <MenuItem value={"TIFF"}>tiff</MenuItem>
-                  <MenuItem value={"PDF"}>pdf</MenuItem>
-                </Select>
-            </FormControl>
-          </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            p: 1,
+            m: 1,
+            bgcolor: "background.paper",
+            borderRadius: 1,
+          }}
+        >
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-controlled-open-select-label">
+              Barcode Position
+            </InputLabel>
+            <Select
+              labelId="demo-controlled-open-select-label"
+              id="demo-controlled-open-select"
+              value={barcodePosition}
+              label="Barcode Position"
+              onChange={handleBarcodePosition}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value={"LEFT"}>Left</MenuItem>
+              <MenuItem value={"RIGHT"}>Right</MenuItem>
+              <MenuItem value={"MIDDLE"}>Middle</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl sx={{ m: 1, minWidth: 120 }}>
+            <InputLabel id="demo-controlled-open-select-export-as">
+              Export As
+            </InputLabel>
+            <Select
+              labelId="demo-controlled-open-select-export-as"
+              id="demo-controlled-open-select-export-as"
+              value={exportType}
+              label="Export As"
+              onChange={handleExportType}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value={"TIFF"}>tiff</MenuItem>
+              <MenuItem value={"PDF"}>pdf</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
         <Box {...getRootProps()} sx={useStyles}>
           <input {...getInputProps()} />
           <p>Drag 'n' drop some files here, or click to select files</p>
         </Box>
       </Grid>
+      {areFilesUploaded ? (
+        <Button
+          size="medium"
+          style={{ margin: "20px" }}
+          variant="contained"
+          onClick={() => onDownloadAll(files)}
+          disabled={isDownloading}
+        >
+          Download All
+        </Button>
+      ) : (
+        ""
+      )}
 
       {files.map((fileWrapper) => {
         const isError = Boolean(fileWrapper.errors.length);
