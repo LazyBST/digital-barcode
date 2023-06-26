@@ -93,11 +93,12 @@ export function MultipleFileUploadField() {
   const onDownloadAll = useCallback(
     async (files) => {
       setIsDownloading(true);
-      const promises = [];
+      let transformedFiles = [];
       for (const file of files) {
         const objectKey = file.objectKey;
+        const fileName = `${objectKey}.${exportType?.toLowerCase()}`;
 
-        const apiCall = axiosInstance
+        const transformedFile = await axiosInstance
           .post("/barcode", {
             object_key: String(objectKey),
             barcode_position: String(barcodePosition),
@@ -106,7 +107,6 @@ export function MultipleFileUploadField() {
           })
           .then((resp) => {
             const data = resp.data;
-            const fileName = `${objectKey}.${exportType?.toLowerCase()}`;
             if (!isZipDownload) {
               const link = document.createElement("a");
               link.id = objectKey;
@@ -134,20 +134,24 @@ export function MultipleFileUploadField() {
             console.error(
               `error adding barcode to file ${objectKey} :: ${err}`
             );
+            alert(
+              `There was an error transforming the file with name ${fileName}`
+            );
             return {
-              name: objectKey,
+              name: fileName,
+              objectKey: objectKey,
               url: undefined,
             };
           });
-        promises.push(apiCall);
+
+        transformedFiles.push(transformedFile);
       }
 
-      let fileUrls = await Promise.all(promises);
-      fileUrls = fileUrls.filter((file) => file.url);
+      transformedFiles = transformedFiles.filter((file) => file.url);
 
       if (isZipDownload) {
         const filesDataPromise = [];
-        for (const file of fileUrls) {
+        for (const file of transformedFiles) {
           const apiCall = axios
             .get(file.url, {
               responseType: "arraybuffer",

@@ -46,35 +46,35 @@ app.get("/signedURL", async (req, res) => {
   let barcode = "";
   const tableName = query.tableName;
   const prefix = query.prefix;
-  let zeroAppendedBarcode = "";
+  let digitsAppendedBarcode = "";
   try {
     if (tableName && prefix) {
       for (let i = 0; i < BARCODE_GENERATION_RETRY; i++) {
         barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
-        zeroAppendedBarcode = "0" + barcode;
+        digitsAppendedBarcode = "01" + barcode;
 
         const isExits = await checkIfBarCodeAlreadyExists(
           tableName,
-          zeroAppendedBarcode,
+          digitsAppendedBarcode,
           prefix
         );
 
         if (!isExits) {
           break;
         } else {
-          zeroAppendedBarcode = "0";
+          digitsAppendedBarcode = "01";
         }
       }
     } else {
       barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
-      zeroAppendedBarcode = "0" + barcode;
+      digitsAppendedBarcode = "01" + barcode;
     }
 
-    if (zeroAppendedBarcode === "0")
+    if (digitsAppendedBarcode === "01")
       throw new Error("can't generate unique barcode");
 
     const objectKey =
-      (prefix || "") + zeroAppendedBarcode + "-original" + ".pdf";
+      (prefix || "") + digitsAppendedBarcode + "-original" + ".pdf";
 
     const command = new PutObjectCommand({
       Bucket: process.env.S3_BUCKET,
@@ -90,12 +90,12 @@ app.get("/signedURL", async (req, res) => {
     });
 
     if (tableName && prefix) {
-      await pushDataInDb(tableName, zeroAppendedBarcode, prefix);
+      await pushDataInDb(tableName, digitsAppendedBarcode, prefix);
     }
 
     res.json({
       upload_url: uploadUrl,
-      object_key: zeroAppendedBarcode,
+      object_key: digitsAppendedBarcode,
       prefix,
     });
   } catch (err) {
