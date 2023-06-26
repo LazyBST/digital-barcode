@@ -5,7 +5,9 @@ import {
   MenuItem,
   InputLabel,
   FormControl,
+  FormLabel,
   Button,
+  Checkbox,
 } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -13,7 +15,9 @@ import { useDropzone } from "react-dropzone";
 import { UploadError } from "./UploadError";
 import { SingleFileUploadWithProgress } from "./SingleFileUploadWithProgress";
 import { axiosInstance } from "@/utils";
+import axios from "axios";
 import { FullScreenLoader } from "./FullScreenLoader";
+import { generateZipForFiles } from "@/utils/utils";
 
 let currentId = 0;
 
@@ -36,6 +40,9 @@ export function MultipleFileUploadField() {
   const [files, setFiles] = useState([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [areFilesUploaded, setAreFilesUploaded] = useState(false);
+  const [isZipDownload, setIsZipDownload] = useState(true);
+  const [barcodePosition, setBarcodePosition] = useState("LEFT");
+  const [exportType, setExportType] = useState("PDF");
 
   const onDrop = useCallback(
     (accFiles, rejFiles) => {
@@ -70,9 +77,6 @@ export function MultipleFileUploadField() {
     },
   });
 
-  const [barcodePosition, setBarcodePosition] = useState("LEFT");
-  const [exportType, setExportType] = useState("PDF");
-
   const handleBarcodePosition = (event) => {
     setBarcodePosition(event.target.value);
   };
@@ -81,47 +85,103 @@ export function MultipleFileUploadField() {
     setExportType(event.target.value);
   };
 
+  const onZipDonwloadChange = (event) => {
+    const checked = event.target.checked;
+    setIsZipDownload(checked);
+  };
+
   const onDownloadAll = useCallback(
     async (files) => {
       setIsDownloading(true);
+      const promises = [];
       for (const file of files) {
         const objectKey = file.objectKey;
 
-        const { data } = await axiosInstance
+        const apiCall = axiosInstance
           .post("/barcode", {
-            object_key: String(objectKey),
-            barcode_position: String(barcodePosition),
-            export_type: String(exportType),
-            // property: String(process.env.NEXT_PUBLIC_PROPERTY),
+            params: {
+              barCodeText: String(objectKey),
+              barcode_position: String(barcodePosition),
+              export_type: String(exportType),
+            },
+          })
+          .then((resp) => {
+            const data = resp.data;
+            const fileName = `${objectKey}.${exportType?.toLowerCase()}`;
+            if (!isZipDownload) {
+              const link = document.createElement("a");
+              link.id = objectKey;
+              link.href = data.url;
+              link.target = "_self";
+              link.setAttribute("download", fileName);
+
+              // Append to html link element page
+              document.body.appendChild(link);
+
+              // Start download
+              // setTimeout(() => {
+              link.click();
+              // Clean up and remove the link
+              link.parentNode.removeChild(link);
+              // }, 500);
+            }
+            return {
+              name: fileName,
+              objectKey: objectKey,
+              url: data.url,
+            };
           })
           .catch((err) => {
-            console.error("error adding barcode to file", err);
-            return { data: undefined };
+            console.error(
+              `error adding barcode to file ${objectKey} :: ${err}`
+            );
+            return {
+              name: objectKey,
+              url: undefined,
+            };
           });
+        promises.push(apiCall);
+      }
 
-        if (!data) continue;
+      let fileUrls = await Promise.all(promises);
+      fileUrls = fileUrls.filter((file) => file.url);
 
-        const link = document.createElement("a");
-        link.href = data.tiff_url;
-        link.setAttribute(
-          "download",
-          `${objectKey}.${exportType?.toLowerCase()}`
-        );
-
-        // Append to html link element page
-        document.body.appendChild(link);
-
-        // Start download
-        setTimeout(() => {
-          link.click();
-          // Clean up and remove the link
-          link.parentNode.removeChild(link);
-        }, 500);
+      if (isZipDownload) {
+        const filesDataPromise = [];
+        for (const file of fileUrls) {
+          const apiCall = axios
+            .get(file.url, {
+              responseType: "arraybuffer",
+            })
+            .then((resp) => {
+              const data = resp.data;
+              return {
+                ...file,
+                blob: data,
+              };
+            })
+            .catch((err) => {
+              console.error(
+                `error downloadin barcode appended file ${file.name} :: ${err}`
+              );
+              return {
+                ...file,
+                blob: undefined,
+              };
+            });
+          filesDataPromise.push(apiCall);
+        }
+        const filesData = await Promise.all(filesDataPromise);
+        await generateZipForFiles(filesData);
       }
       setIsDownloading(false);
     },
-    [files]
+    [files, isZipDownload, exportType]
   );
+
+  const onClearAll = useCallback(() => {
+    setFiles([]);
+  }, [files]);
 
   useEffect(() => {
     if (files.length && files.every((file) => !!file.objectKey)) {
@@ -178,6 +238,25 @@ export function MultipleFileUploadField() {
               <MenuItem value={"PDF"}>pdf</MenuItem>
             </Select>
           </FormControl>
+          <FormControl
+            sx={{
+              m: 1,
+              minWidth: 200,
+              ml: "auto",
+              display: "flex",
+              justifyContent: "space-evenly",
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <FormLabel>Download as zip</FormLabel>
+            <Checkbox
+              aria-label="zip-option-checkbox"
+              onChange={onZipDonwloadChange}
+              checked={isZipDownload}
+            />
+          </FormControl>
         </Box>
         <Box {...getRootProps()} sx={useStyles}>
           <input {...getInputProps()} />
@@ -185,15 +264,28 @@ export function MultipleFileUploadField() {
         </Box>
       </Grid>
       {areFilesUploaded ? (
-        <Button
-          size="medium"
-          style={{ margin: "20px" }}
-          variant="contained"
-          onClick={() => onDownloadAll(files)}
-          disabled={isDownloading}
-        >
-          Download All
-        </Button>
+        <>
+          <Button
+            size="medium"
+            style={{ margin: "10px" }}
+            variant="contained"
+            onClick={() => onDownloadAll(files)}
+            disabled={isDownloading}
+          >
+            Download All
+          </Button>
+
+          <Button
+            size="medium"
+            style={{ margin: "10px" }}
+            variant="contained"
+            onClick={() => onClearAll()}
+            color="info"
+            disabled={isDownloading}
+          >
+            Clear All
+          </Button>
+        </>
       ) : (
         ""
       )}

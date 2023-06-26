@@ -136,10 +136,9 @@ export const convertToTiff = (pdfBuffer, filename) => {
         } else {
           resolve({ status: "success" });
         }
-      })
-      .catch((err) => {
-        console.error("Error saving file", err);
       });
+  }).catch((err) => {
+    console.error("Error saving file", err);
   });
 };
 
@@ -193,12 +192,11 @@ export const cleanUp = (numberOfPages, barCodeText) => {
   }
 };
 
-export const cleanUpAllFiles = () => {
+export const cleanUpAllFiles = (barcode, type) => {
   const path = "./";
-  let regex = /[.](tiff|pdf)$/;
-  fs.readdirSync(path)
-    .filter((f) => regex.test(f))
-    .map((f) => fs.unlinkSync(path + f));
+  const regex = new RegExp(`\\b${barcode}.*${type}\\b`);
+  const fileMap = fs.readdirSync(path).filter((f) => regex.test(f));
+  fileMap.map((f) => fs.unlinkSync(path + f));
 };
 
 export const compressTiff = (tiffBytes) => {

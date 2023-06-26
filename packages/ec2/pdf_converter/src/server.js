@@ -161,7 +161,7 @@ app.post("/barcode", async (req, res) => {
       await uploadToS3(s3Client, outputMultiPagePdf, fileKey);
 
       const url = await getPresignedUrl(s3Client, fileKey);
-      cleanUpAllFiles();
+      cleanUpAllFiles(barCodeText, "pdf");
 
       return res.json({
         url,
@@ -187,14 +187,14 @@ app.post("/barcode", async (req, res) => {
 
       const url = await getPresignedUrl(s3Client, fileKey);
 
-      cleanUpAllFiles();
+      cleanUpAllFiles(barCodeText, "tiff");
       return res.json({
         url,
         tiff_url: url,
       });
     }
   } catch (err) {
-    console.error(err);
+    console.error({ err });
     res.status(500).json({
       statusCode: 500,
       message: "Internal Server Error",
