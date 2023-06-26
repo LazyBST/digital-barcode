@@ -99,11 +99,10 @@ export function MultipleFileUploadField() {
 
         const apiCall = axiosInstance
           .post("/barcode", {
-            params: {
-              barCodeText: String(objectKey),
-              barcode_position: String(barcodePosition),
-              export_type: String(exportType),
-            },
+            object_key: String(objectKey),
+            barcode_position: String(barcodePosition),
+            export_type: String(exportType),
+            // property: String(process.env.NEXT_PUBLIC_PROPERTY),
           })
           .then((resp) => {
             const data = resp.data;
@@ -111,7 +110,7 @@ export function MultipleFileUploadField() {
             if (!isZipDownload) {
               const link = document.createElement("a");
               link.id = objectKey;
-              link.href = data.url;
+              link.href = data?.url || data?.tiff_url;
               link.target = "_self";
               link.setAttribute("download", fileName);
 
@@ -128,7 +127,7 @@ export function MultipleFileUploadField() {
             return {
               name: fileName,
               objectKey: objectKey,
-              url: data.url,
+              url: data?.url || data?.tiff_url,
             };
           })
           .catch((err) => {
