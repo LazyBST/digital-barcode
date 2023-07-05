@@ -6,6 +6,8 @@ import mp from "tiff-multipage";
 import {
   BARCODEYCOORDINATEADJUSTMENT,
   ADDITIONALPAGEHEIGHT,
+  BARCODE_LENGTH,
+  BARCODE_PREFIX,
 } from "./constants.js";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -370,4 +372,17 @@ export const checkIfBarCodeAlreadyExists = async (
   }
 
   return isExist;
+};
+
+export const getRandomNumberInclusive = (min, max) => {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  let num = Math.floor(Math.random() * (max - min + 1) + min);
+
+  const numLen = num.toString().length;
+  for (let i = 0; i < BARCODE_LENGTH - numLen - BARCODE_PREFIX.length; i++) {
+    num = "0" + num;
+  }
+
+  return num;
 };

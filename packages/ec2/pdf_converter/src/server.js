@@ -11,9 +11,11 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import cors from "cors";
 import {
-  RANDOMNUMBERMULTIPLIER,
   EXPORT_TYPES,
   BARCODE_GENERATION_RETRY,
+  BARCODE_MIN_NUMBER,
+  BARCODE_MAX_NUMBER,
+  BARCODE_PREFIX,
 } from "./utils/constants.js";
 
 import {
@@ -26,6 +28,7 @@ import {
   mergePdfs,
   checkIfBarCodeAlreadyExists,
   pushDataInDb,
+  getRandomNumberInclusive,
 } from "./utils/utils.js";
 
 const app = express();
@@ -50,8 +53,11 @@ app.get("/signedURL", async (req, res) => {
   try {
     if (tableName && prefix) {
       for (let i = 0; i < BARCODE_GENERATION_RETRY; i++) {
-        barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
-        digitsAppendedBarcode = "01" + barcode;
+        barcode = getRandomNumberInclusive(
+          BARCODE_MIN_NUMBER,
+          BARCODE_MAX_NUMBER
+        );
+        digitsAppendedBarcode = BARCODE_PREFIX + barcode;
 
         const isExits = await checkIfBarCodeAlreadyExists(
           tableName,
@@ -62,15 +68,18 @@ app.get("/signedURL", async (req, res) => {
         if (!isExits) {
           break;
         } else {
-          digitsAppendedBarcode = "01";
+          digitsAppendedBarcode = BARCODE_PREFIX;
         }
       }
     } else {
-      barcode = Math.floor(Math.random() * RANDOMNUMBERMULTIPLIER);
-      digitsAppendedBarcode = "01" + barcode;
+      barcode = getRandomNumberInclusive(
+        BARCODE_MIN_NUMBER,
+        BARCODE_MAX_NUMBER
+      );
+      digitsAppendedBarcode = BARCODE_PREFIX + barcode;
     }
 
-    if (digitsAppendedBarcode === "01")
+    if (digitsAppendedBarcode === BARCODE_PREFIX)
       throw new Error("can't generate unique barcode");
 
     const objectKey =
