@@ -55,7 +55,7 @@ export function SingleFileUploadWithProgress({
         let endpoint = `/signedURL`;
 
         if (isAddPrefix) {
-          endpoint += `?prefix=${process.env.NEXT_PUBLIC_PROPERTY}`;
+          endpoint += `?property=${process.env.NEXT_PUBLIC_PROPERTY}`;
         }
 
         const { data } = await axiosInstance.get(endpoint, {
