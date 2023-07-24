@@ -10,6 +10,7 @@ export function SingleFileUploadWithProgress({
   onUpload,
   barcodePosition,
   exportType,
+  isAddPrefix,
 }) {
   const [progress, setProgress] = useState(0);
   const [objectKey, setObjectKey] = useState();
@@ -18,12 +19,17 @@ export function SingleFileUploadWithProgress({
   const onDownload = async () => {
     // Write on download function using objectKey
     setDownloading(true);
-    const { data } = await axiosInstance.post("/barcode", {
+    const payload = {
       object_key: String(objectKey),
       barcode_position: String(barcodePosition),
       export_type: String(exportType),
-      // property: String(process.env.NEXT_PUBLIC_PROPERTY),
-    });
+    };
+
+    if (isAddPrefix) {
+      payload.property = String(process.env.NEXT_PUBLIC_PROPERTY);
+    }
+
+    const { data } = await axiosInstance.post("/barcode", payload);
 
     const link = document.createElement("a");
     link.href = data.tiff_url;
@@ -46,12 +52,15 @@ export function SingleFileUploadWithProgress({
 
     async function upload() {
       try {
-        const { data } = await axiosInstance.get(
-          `/signedURL`, //?property=${process.env.NEXT_PUBLIC_PROPERTY}`,
-          {
-            cancelToken: cancelTokenSource.token,
-          }
-        );
+        let endpoint = `/signedURL`;
+
+        if (isAddPrefix) {
+          endpoint += `?prefix=${process.env.NEXT_PUBLIC_PROPERTY}`;
+        }
+
+        const { data } = await axiosInstance.get(endpoint, {
+          cancelToken: cancelTokenSource.token,
+        });
         const { object_key, upload_url: uploadUrl } = data;
 
         const url = await uploadFile(uploadUrl, file, setProgress);

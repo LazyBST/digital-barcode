@@ -5,7 +5,7 @@ export const generateZipForFiles = async (files) => {
   let filename = Date.now();
   const zip = new JSZip();
   files.forEach((file) => {
-    const name = file.name;
+    const name = file.prefix ? file.prefix + file.name : file.name;
     const blob = file.blob;
     if (blob) {
       zip.file(name, blob);
@@ -15,5 +15,5 @@ export const generateZipForFiles = async (files) => {
   await zip
     .generateAsync({ type: "blob" })
     .then((blob) => saveAs(blob, filename))
-    .catch((e) => console.log(`error downloading the zip :: ${e}`));
+    .catch((e) => console.error(`error downloading the zip :: ${e}`));
 };

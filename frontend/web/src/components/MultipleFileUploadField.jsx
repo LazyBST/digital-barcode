@@ -41,6 +41,7 @@ export function MultipleFileUploadField() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [areFilesUploaded, setAreFilesUploaded] = useState(false);
   const [isZipDownload, setIsZipDownload] = useState(true);
+  const [isAddPrefix, setIsAddPrefix] = useState(true);
   const [barcodePosition, setBarcodePosition] = useState("LEFT");
   const [exportType, setExportType] = useState("PDF");
 
@@ -90,6 +91,12 @@ export function MultipleFileUploadField() {
     setIsZipDownload(checked);
   };
 
+  const onAddPrefixChange = (event) => {
+    const checked = event.target.checked;
+    setIsAddPrefix(checked);
+    onClearAll();
+  };
+
   const onDownloadAll = useCallback(
     async (files) => {
       setIsDownloading(true);
@@ -98,13 +105,20 @@ export function MultipleFileUploadField() {
         const objectKey = file.objectKey;
         const fileName = `${objectKey}.${exportType?.toLowerCase()}`;
 
+        const payload = {
+          object_key: String(objectKey),
+          barcode_position: String(barcodePosition),
+          export_type: String(exportType),
+        };
+
+        const filePrefix = String(process.env.NEXT_PUBLIC_PROPERTY);
+
+        if (isAddPrefix) {
+          payload.property = filePrefix;
+        }
+
         const transformedFile = await axiosInstance
-          .post("/barcode", {
-            object_key: String(objectKey),
-            barcode_position: String(barcodePosition),
-            export_type: String(exportType),
-            // property: String(process.env.NEXT_PUBLIC_PROPERTY),
-          })
+          .post("/barcode", payload)
           .then((resp) => {
             const data = resp.data;
             if (!isZipDownload) {
@@ -128,6 +142,7 @@ export function MultipleFileUploadField() {
               name: fileName,
               objectKey: objectKey,
               url: data?.url || data?.tiff_url,
+              prefix: isAddPrefix ? filePrefix : undefined,
             };
           })
           .catch((err) => {
@@ -179,7 +194,7 @@ export function MultipleFileUploadField() {
       }
       setIsDownloading(false);
     },
-    [files, isZipDownload, exportType]
+    [files, isZipDownload, exportType, isAddPrefix]
   );
 
   const onClearAll = useCallback(() => {
@@ -241,7 +256,7 @@ export function MultipleFileUploadField() {
               <MenuItem value={"PDF"}>pdf</MenuItem>
             </Select>
           </FormControl>
-          <FormControl
+          <Box
             sx={{
               m: 1,
               minWidth: 200,
@@ -253,13 +268,45 @@ export function MultipleFileUploadField() {
               alignItems: "center",
             }}
           >
-            <FormLabel>Download as zip</FormLabel>
-            <Checkbox
-              aria-label="zip-option-checkbox"
-              onChange={onZipDonwloadChange}
-              checked={isZipDownload}
-            />
-          </FormControl>
+            <FormControl
+              sx={{
+                m: 1,
+                minWidth: 200,
+                ml: "auto",
+                display: "flex",
+                justifyContent: "space-evenly",
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <FormLabel>Download as zip</FormLabel>
+              <Checkbox
+                aria-label="zip-option-checkbox"
+                onChange={onZipDonwloadChange}
+                checked={isZipDownload}
+              />
+            </FormControl>
+            <FormControl
+              sx={{
+                m: 1,
+                minWidth: 200,
+                ml: "auto",
+                display: "flex",
+                justifyContent: "space-evenly",
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <FormLabel>Add filename prefix</FormLabel>
+              <Checkbox
+                aria-label="prefix-option-checkbox"
+                onChange={onAddPrefixChange}
+                checked={isAddPrefix}
+              />
+            </FormControl>
+          </Box>
         </Box>
         <Box {...getRootProps()} sx={useStyles}>
           <input {...getInputProps()} />
@@ -309,6 +356,7 @@ export function MultipleFileUploadField() {
                 onUpload={onUpload}
                 file={fileWrapper.file}
                 exportType={exportType}
+                isAddPrefix={isAddPrefix}
               />
             )}
           </Grid>
