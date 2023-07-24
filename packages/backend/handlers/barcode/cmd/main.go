@@ -72,7 +72,7 @@ func BarcodeHandler(ctx *gin.Context) {
 	fmt.Println("Http call")
 	httpClient := http.Client{Timeout: 5 * time.Minute}
 	resp, err := httpClient.Post(
-		"http://34.222.158.209:80/barcode",
+		"http://34.222.158.209:8080/barcode",
 		"application/json",
 		bytes.NewBuffer(requestBody))
 	if err != nil {

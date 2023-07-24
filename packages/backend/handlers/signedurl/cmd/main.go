@@ -37,7 +37,7 @@ func SignedUrlHandler(ctx *gin.Context) {
 	propertyCode := ctx.Query("property")
 	filesTable := os.Getenv("FILES_TABLE")
 	url := fmt.Sprintf(
-		"http://34.222.158.209:80/signedURL?tableName=%s&prefix=%s",
+		"http://34.222.158.209:8080/signedURL?tableName=%s&prefix=%s",
 		filesTable,
 		propertyCode)
 	httpClient := http.Client{Timeout: 5 * time.Minute}
