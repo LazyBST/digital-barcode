@@ -211,6 +211,10 @@ app.post("/barcode", async (req, res) => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.status(200).json({ statusCode: 200, message: "Ok" });
+});
+
 app.listen(8080, () => {
   console.log("server listening on port 8080");
 });
